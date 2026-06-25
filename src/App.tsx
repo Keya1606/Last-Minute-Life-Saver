@@ -5,7 +5,6 @@ import LandingPage from "./components/LandingPage";
 import SignInPage from "./components/SignInPage";
 import SignUpPage from "./components/SignUpPage";
 import Dashboard from "./components/Dashboard";
-import ProfilePage from "./components/ProfilePage";
 import { Loader2 } from "lucide-react";
 
 interface SessionInfo {
@@ -168,14 +167,6 @@ export default function App() {
         <Dashboard 
           userEmail={session.email} 
           userId={session.userId} 
-          onLogout={handleLogout} 
-          onNavigate={navigate} 
-        />
-      ) : null;
-    case "/profile":
-      return session ? (
-        <ProfilePage 
-          userEmail={session.email} 
           onLogout={handleLogout} 
           onNavigate={navigate} 
         />

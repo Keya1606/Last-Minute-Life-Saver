@@ -149,61 +149,63 @@ export default function SignInPage({ onNavigate, onLoginSuccess }: SignInPagePro
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-[#232323] flex flex-col justify-center items-center px-4 py-12 font-sans">
+    <div className="min-h-screen bg-[#F7F8FC] text-[#1F2937] flex flex-col justify-center items-center px-4 py-12 font-sans">
       
       {/* Return Home Button */}
       <button 
         onClick={() => onNavigate("/")}
-        className="mb-8 flex items-center gap-1.5 text-gray-500 hover:text-gray-800 text-sm transition-colors cursor-pointer"
+        className="mb-8 flex items-center gap-1.5 text-[#5F6B7A] hover:text-[#5B6CFF] text-[15px] font-semibold transition-colors cursor-pointer"
         id="signin-back-home"
       >
         <ArrowLeft className="w-4 h-4" /> Back to Landing Page
       </button>
 
       {/* Main card */}
-      <div className="w-full max-w-[400px] custom-card p-8" id="signin-card">
+      <div className="w-full max-w-[400px] bg-white border border-[#E5EAF5] rounded-[24px] shadow-sm p-8" id="signin-card">
         
         {/* Title */}
         <div className="text-center mb-8">
-          <div className="w-10 h-10 rounded-full bg-[#FF6B4A] flex items-center justify-center text-white mx-auto mb-3 shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-[#5B6CFF] flex items-center justify-center text-white mx-auto mb-3 shadow-md shadow-[#5B6CFF]/20">
             <Zap className="w-5 h-5 fill-white stroke-none" />
           </div>
-          <h2 className="font-outfit text-2xl font-bold tracking-tight">Welcome back</h2>
-          <p className="text-sm text-gray-500 mt-1 font-light">Let's rebuild your momentum today.</p>
+          <h2 className="font-outfit text-2xl font-semibold tracking-tight text-[#1F2937]">Welcome back</h2>
+          <p className="text-[15px] text-[#5F6B7A] mt-1.5 font-medium">Let's rebuild your momentum today.</p>
         </div>
 
         {/* Supabase status badge (if offline demo) */}
         {!isSupabaseConfigured && (
-          <div className="mb-6 p-3 bg-orange-50 border border-orange-100 rounded-lg text-[11px] text-gray-600 leading-relaxed font-light">
-            <span className="font-semibold text-[#FF6B4A]">Sandbox Mode:</span> Supabase is not connected. Sign in with any credentials to try the app offline!
+          <div className="mb-6 p-4 bg-[#EEF2FF] border border-[#DCE5FF] rounded-[14px] text-[13px] text-gray-700 leading-relaxed font-medium">
+            <span className="font-bold text-[#5B6CFF]">Sandbox Mode:</span> Supabase is not connected. Sign in with any credentials to try the app offline!
           </div>
         )}
 
         {errorMessage && (
-          <div className="mb-5 p-3.5 bg-red-50 border border-red-100 text-xs text-red-600 rounded-lg font-light leading-normal" id="signin-error">
+          <div className="mb-5 p-4 bg-red-50 border border-red-100 text-[13px] text-red-600 rounded-[14px] font-semibold leading-normal" id="signin-error">
             {errorMessage}
           </div>
         )}
 
         {successMessage && (
-          <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-100 text-xs text-[#4CAF82] rounded-lg font-light leading-normal" id="signin-success">
+          <div className="mb-5 p-4 bg-emerald-50 border border-emerald-100 text-[13px] text-[#22C55E] rounded-[14px] font-semibold leading-normal" id="signin-success">
             {successMessage}
           </div>
         )}
 
-        <form onSubmit={handleSignIn} className="space-y-4">
+        <form onSubmit={handleSignIn} className="space-y-4.5">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider mb-2">
               Email Address
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-[#5F6B7A]/70">
+                <Mail className="w-5 h-5" />
+              </div>
               <input
                 type="email"
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-[#FAFAF9] border border-[#ECE9E3] focus:border-[#FF6B4A] focus:ring-1 focus:ring-[#FF6B4A] outline-none text-sm transition-colors rounded-lg"
+                className="w-full h-[52px] input-with-icon pr-5 bg-[#F7F8FC] border border-[#E5EAF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[14px] transition-colors font-medium text-[#1F2937]"
                 required
                 disabled={loading}
                 id="signin-email"
@@ -212,27 +214,29 @@ export default function SignInPage({ onNavigate, onLoginSuccess }: SignInPagePro
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">
                 Password
               </label>
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                className="text-xs text-gray-500 hover:text-[#FF6B4A] font-light transition-colors"
+                className="text-[13px] text-[#5B6CFF] hover:text-[#4758E8] hover:underline font-semibold transition-colors cursor-pointer"
                 id="signin-forgot-password"
               >
                 Forgot password?
               </button>
             </div>
             <div className="relative">
-              <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-[#5F6B7A]/70">
+                <Lock className="w-5 h-5" />
+              </div>
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-[#FAFAF9] border border-[#ECE9E3] focus:border-[#FF6B4A] focus:ring-1 focus:ring-[#FF6B4A] outline-none text-sm transition-colors rounded-lg"
+                className="w-full h-[52px] input-with-icon pr-5 bg-[#F7F8FC] border border-[#E5EAF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[14px] transition-colors font-medium text-[#1F2937]"
                 required
                 disabled={loading}
                 id="signin-password"
@@ -243,7 +247,7 @@ export default function SignInPage({ onNavigate, onLoginSuccess }: SignInPagePro
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-[#FF6B4A] hover:bg-[#ff5631] text-white font-medium text-sm custom-btn transition-all shadow-sm hover:shadow flex items-center justify-center gap-2 cursor-pointer mt-2"
+            className="w-full py-3 bg-[#5B6CFF] hover:bg-[#4758E8] text-white font-semibold text-[15px] rounded-[14px] transition-all hover:scale-[1.02] shadow-sm flex items-center justify-center gap-2 cursor-pointer mt-2"
             id="signin-submit"
           >
             {loading ? (
@@ -257,16 +261,16 @@ export default function SignInPage({ onNavigate, onLoginSuccess }: SignInPagePro
         </form>
 
         <div className="relative my-6 flex items-center">
-          <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink mx-4 text-xs text-gray-400 uppercase tracking-widest bg-white">or</span>
-          <div className="flex-grow border-t border-gray-200"></div>
+          <div className="flex-grow border-t border-[#E5EAF5]"></div>
+          <span className="flex-shrink mx-4 text-xs text-[#5F6B7A] uppercase tracking-widest bg-white">or</span>
+          <div className="flex-grow border-t border-[#E5EAF5]"></div>
         </div>
 
         {/* Continue with Google */}
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full py-2.5 bg-white border border-[#ECE9E3] hover:bg-[#FAFAF9] text-gray-700 text-sm font-medium custom-btn flex items-center justify-center gap-2.5 shadow-sm transition-all cursor-pointer"
+          className="w-full py-3 bg-white border border-[#E5EAF5] hover:bg-gray-50 text-gray-700 text-[15px] font-semibold rounded-[14px] flex items-center justify-center gap-2.5 shadow-sm transition-all cursor-pointer"
           id="signin-google"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" width="24" height="24">
@@ -291,11 +295,11 @@ export default function SignInPage({ onNavigate, onLoginSuccess }: SignInPagePro
         </button>
 
         {/* Direct to Sign Up */}
-        <p className="text-center text-xs text-gray-500 mt-8 font-light">
+        <p className="text-center text-[13px] text-[#5F6B7A] mt-8 font-medium">
           New to Life Saver?{" "}
           <button
             onClick={() => onNavigate("/signup")}
-            className="font-medium text-[#FF6B4A] hover:underline"
+            className="font-bold text-[#5B6CFF] hover:underline"
             id="signin-goto-signup"
           >
             Create an account

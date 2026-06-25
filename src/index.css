@@ -4,69 +4,30 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Outfit", "Inter", sans-serif;
-  --color-warm-bg: #FAFAF9;
-  --color-soft-dark: #232323;
-  --color-coral: #FF6B4A;
-  --color-fresh-green: #4CAF82;
-  --color-amber-warn: #F2A93B;
-  --color-overdue-red: #E2574C;
-  --color-soft-border: #ECE9E3;
+  --color-brand-primary: #5B6CFF;
+  --color-brand-hover: #4758E8;
+  --color-brand-secondary: #7C8CFF;
+  --color-brand-bg: #F7F8FC;
+  --color-brand-card: #FFFFFF;
+  --color-brand-sidebar: #EEF2FF;
+  --color-brand-sidebar-hover: #DCE5FF;
+  --color-brand-border: #E5EAF5;
+  --color-brand-text-primary: #1F2937;
+  --color-brand-text-secondary: #5F6B7A;
+  --color-fresh-green: #22C55E;
+  --color-amber-warn: #F59E0B;
+  --color-overdue-red: #EF4444;
 }
 
-/* Base custom classes to match the design system with a Frosted Glass theme */
+/* Base custom classes to match the design system with a premium, clean desktop theme */
 body {
-  background-color: #F4F3F0;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(255, 107, 74, 0.08) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(76, 175, 130, 0.08) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(242, 169, 59, 0.06) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(255, 107, 74, 0.05) 0px, transparent 50%);
-  background-attachment: fixed;
-  color: var(--color-soft-dark);
+  background-color: #F7F8FC;
+  color: #1F2937;
   font-family: var(--font-sans);
   position: relative;
   min-height: 100vh;
-}
-
-/* Floating animated background blobs for Frosted Glass depth */
-body::before {
-  content: "";
-  position: fixed;
-  top: -10%;
-  left: -5%;
-  width: 45vw;
-  height: 45vw;
-  background: radial-gradient(circle, rgba(255, 107, 74, 0.16) 0%, rgba(255, 107, 74, 0) 70%);
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: -1;
-  pointer-events: none;
-  animation: float1 25s ease-in-out infinite alternate;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  bottom: -5%;
-  right: -5%;
-  width: 50vw;
-  height: 50vw;
-  background: radial-gradient(circle, rgba(76, 175, 130, 0.14) 0%, rgba(76, 175, 130, 0) 70%);
-  border-radius: 50%;
-  filter: blur(90px);
-  z-index: -1;
-  pointer-events: none;
-  animation: float2 30s ease-in-out infinite alternate;
-}
-
-@keyframes float1 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(8%, 8%) scale(1.1); }
-}
-
-@keyframes float2 {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(-8%, -8%) scale(1.15); }
+  margin: 0;
+  padding: 0;
 }
 
 .font-outfit {
@@ -77,62 +38,68 @@ body::after {
   font-variant-numeric: tabular-nums;
 }
 
-/* Frosted Glassmorphism card styling */
+/* Rounded premium cards */
 .custom-card {
-  background-color: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(20px) saturate(120%);
-  -webkit-backdrop-filter: blur(20px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  box-shadow: 
-    0 8px 32px 0 rgba(31, 38, 135, 0.04),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.5);
-  border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: #FFFFFF;
+  border: 1px solid #E5EAF5;
+  box-shadow: 0 4px 18px -4px rgba(91, 108, 255, 0.04), 0 2px 8px -2px rgba(91, 108, 255, 0.02);
+  border-radius: 20px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .custom-card:hover {
-  background-color: rgba(255, 255, 255, 0.55);
-  border-color: rgba(255, 255, 255, 0.55);
-  box-shadow: 
-    0 12px 40px 0 rgba(31, 38, 135, 0.06),
-    inset 0 1px 2px 0 rgba(255, 255, 255, 0.6);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
+  border-color: #7C8CFF;
+  box-shadow: 0 12px 28px -4px rgba(91, 108, 255, 0.12), 0 4px 12px -2px rgba(91, 108, 255, 0.06);
 }
 
-/* Frosted input styles */
+/* Inputs styling matching 14px border radius */
 input, textarea, select {
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  transition: all 0.25s ease-in-out !important;
+  background-color: #FFFFFF;
+  border: 1px solid #E5EAF5;
+  transition: all 0.2s ease-in-out;
+  border-radius: 14px;
+  color: #1F2937;
+  font-size: 15px;
+  padding: 12px 16px;
+}
+
+.input-with-icon {
+  padding-left: 48px !important;
 }
 
 input:focus, textarea:focus, select:focus {
-  background-color: rgba(255, 255, 255, 0.75) !important;
-  border-color: rgba(255, 107, 74, 0.6) !important;
-  box-shadow: 0 0 0 2px rgba(255, 107, 74, 0.15) !important;
+  background-color: #FFFFFF;
+  border-color: #5B6CFF;
+  box-shadow: 0 0 0 4px rgba(91, 108, 255, 0.12);
+  outline: none;
 }
 
-/* Premium frosted buttons */
+/* Premium buttons with 14px border radius */
 .custom-btn {
-  border-radius: 10px;
+  border-radius: 14px;
+  font-size: 15px;
   font-weight: 600;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Custom scrollbars */
+.custom-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(91, 108, 255, 0.15);
+}
+
+/* Custom scrollbars matching premium look */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(236, 233, 227, 0.7);
+  background: #E5EAF5;
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(217, 213, 205, 0.9);
+  background: #7C8CFF;
 }

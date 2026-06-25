@@ -480,6 +480,86 @@ Make the draft humble, concise, and incredibly polite. Ask for a brief extension
   }
 });
 
+// 5. AI Coach Chat / Conversation Endpoint
+app.post("/api/ai-coach-chat", async (req, res) => {
+  const { message, history } = req.body;
+  if (!message) {
+    return res.status(400).json({ error: "message is required." });
+  }
+
+  const prompt = `You are "Gemini", an empathetic, highly practical productivity coach at "Last-Minute Life Saver".
+The user is under immense academic or professional pressure with high-stakes tasks and close deadlines.
+Provide comfort, break down tasks into bite-sized actionable steps, and advise on how to build focus and maintain mental stability.
+Keep your response short, extremely supportive, under 3 paragraphs, with clear formatting and bullet points if needed.
+
+User message: "${message}"`;
+
+  // Dynamic offline chat fallback responder
+  function generateFallbackChatResponse(msg: string): string {
+    const lower = msg.toLowerCase();
+    
+    if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
+      return `Hello! I am your Last-Minute Life Saver productivity coach. Even if the servers are a bit busy, I'm right here with you. 
+      
+What is currently stressing you out the most today? Let's take a deep breath and pick one tiny thing to untangle together.`;
+    }
+    
+    if (lower.includes("stress") || lower.includes("anxious") || lower.includes("overwhelm") || lower.includes("scared") || lower.includes("panic") || lower.includes("worry")) {
+      return `It is completely natural to feel overwhelmed or frozen when deadlines loom. That feeling is just your brain trying to protect you, but we can ease the pressure.
+      
+Here is our stress-buster game plan:
+1. **Take 3 slow, deep breaths**: Inhale confidence, exhale the panic.
+2. **Lower the bar to entry**: Don't think about finishing. Just agree to sit down and work for **only 5 minutes**.
+3. **Minimize distraction**: Put your phone in another room or turn on Do Not Disturb right now.`;
+    }
+
+    if (lower.includes("math") || lower.includes("exam") || lower.includes("study") || lower.includes("test") || lower.includes("paper") || lower.includes("assignment") || lower.includes("homework") || lower.includes("write")) {
+      return `For big academic tasks like studying or writing, the trick is to avoid looking at the mountain all at once.
+      
+Let's try this micro-routine:
+1. **Set up the stage**: Open your study materials or document, and close all other browser tabs.
+2. **Pick a 25-minute Pomodoro**: Work on just *one* section or solve *one* problem, then take a full 5-minute breather.
+3. **Draft a crappy first copy**: If writing, just get words on paper. You can polish it later; right now, any progress is a massive win!`;
+    }
+
+    if (lower.includes("first") || lower.includes("priority") || lower.includes("start") || lower.includes("do now") || lower.includes("which one")) {
+      return `If you're unsure where to begin, I highly recommend using our **Curate AI Priorities** feature on the dashboard or looking at your list:
+      
+1. **The 2-Minute Rule**: If there is a tiny task that takes under two minutes, do it right now to build momentum.
+2. **The "Ugly Frog" first**: Or, pick the single item that is causing you the most dread, spend just 10 minutes on it, and feel that immense mental weight lift!
+3. **The Quick Win**: If you are totally drained, pick the easiest task first just to get a checked box.`;
+    }
+
+    return `I hear you loud and clear. When things build up, the best thing we can do is focus entirely on the *very next step* and ignore the rest of the list for a moment.
+
+Let's tackle this with a clean slate:
+1. **Identify the absolute smallest step**: E.g., opening a document, writing a single line, or organizing one reference.
+2. **Eliminate friction**: Clear your immediate physical workspace.
+3. **Launch a 10-minute focus burst**: Give it a quick go. You might surprise yourself with how much momentum you build!`;
+  }
+
+  if (isGeminiAPIBroken || !process.env.GEMINI_API_KEY) {
+    const fallbackAdvice = generateFallbackChatResponse(message);
+    return res.json({ reply: fallbackAdvice });
+  }
+
+  try {
+    const ai = getAIClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+    });
+
+    const reply = response.text || "I am here to support you. Let's tackle one task at a time and clear that desk.";
+    res.json({ reply });
+  } catch (err) {
+    console.error("AI Coach Chat error:", err);
+    isGeminiAPIBroken = true; // Flag API as broken so subsequent requests fallback instantly and silently!
+    const fallbackAdvice = generateFallbackChatResponse(message);
+    res.json({ reply: fallbackAdvice });
+  }
+});
+
 // Serve frontend assets
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

@@ -109,6 +109,7 @@ export const dataService = {
       const { data, error } = await supabase
         .from("tasks")
         .select("*")
+        .eq("user_id", userId)
         .order("deadline", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -235,6 +236,7 @@ export const dataService = {
       const { data, error } = await supabase
         .from("habits")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return data || [];
@@ -382,6 +384,7 @@ export const dataService = {
       const { data, error } = await supabase
         .from("daily_plans")
         .select("*")
+        .eq("user_id", userId)
         .eq("plan_date", todayStr)
         .maybeSingle();
       if (error && error.code !== "PGRST116") throw error; // ignore no-row error
