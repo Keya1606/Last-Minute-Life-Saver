@@ -1,4 +1,4 @@
--- Last-Minute Life Saver Supabase Database Schema
+-- Duewell Database Schema
 -- Paste this script into the Supabase SQL Editor to create the tables,
 -- set up Row Level Security (RLS) policies, and prepare your database.
 

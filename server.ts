@@ -245,7 +245,7 @@ app.post("/api/prioritize-tasks", async (req, res) => {
   try {
     const ai = getAIClient();
 
-    const prompt = `You are the "Last-Minute Life Saver" AI productivity companion. 
+    const prompt = `You are the "Duewell" AI productivity companion. 
 Your goal is to reduce deadline anxiety and build momentum.
 Take this list of tasks and prioritize them. For each task, assess the urgency, estimated duration, difficulty, and deadline. 
 Reorganize them into a logical, high-momentum execution order (e.g., matching a "quick wins first" or "critical tasks first" philosophy depending on deadlines).
@@ -326,7 +326,7 @@ app.post("/api/generate-daily-plan", async (req, res) => {
   try {
     const ai = getAIClient();
 
-    const prompt = `You are the 'Last-Minute Life Saver' productivity partner.
+    const prompt = `You are the 'Duewell' productivity partner.
 Generate a friendly, realistic, stress-free hour-by-hour timeline for today starting around ${currentTimeStr || "9:00 AM"}.
 Integrate the user's pending tasks and active habits with smart, satisfying slots for breaks, momentum-boosts, or buffer periods.
 Rule: Do not schedule tasks back-to-back without breaks. If a task takes > 60 mins, split it or add a "brain recharge" break.
@@ -438,7 +438,7 @@ app.post("/api/generate-extension-request", async (req, res) => {
   try {
     const ai = getAIClient();
 
-    const prompt = `You are the "Last-Minute Life Saver" AI productivity assistant. Write a short, extremely polite, and professional email draft requesting an extension for a high-stakes task or project assignment.
+    const prompt = `You are the "Duewell" AI productivity assistant. Write a short, extremely polite, and professional email draft requesting an extension for a high-stakes task or project assignment.
 
 Task details:
 - Title: "${taskTitle}"
@@ -482,12 +482,12 @@ Make the draft humble, concise, and incredibly polite. Ask for a brief extension
 
 // 5. AI Coach Chat / Conversation Endpoint
 app.post("/api/ai-coach-chat", async (req, res) => {
-  const { message, history } = req.body;
+  const { message, history, role } = req.body;
   if (!message) {
     return res.status(400).json({ error: "message is required." });
   }
 
-  const prompt = `You are "Gemini", an empathetic, highly practical productivity coach at "Last-Minute Life Saver".
+  const prompt = `You are "Gemini", an empathetic, highly practical productivity coach at "Duewell".
 The user is under immense academic or professional pressure with high-stakes tasks and close deadlines.
 Provide comfort, break down tasks into bite-sized actionable steps, and advise on how to build focus and maintain mental stability.
 Keep your response short, extremely supportive, under 3 paragraphs, with clear formatting and bullet points if needed.
@@ -499,7 +499,7 @@ User message: "${message}"`;
     const lower = msg.toLowerCase();
     
     if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
-      return `Hello! I am your Last-Minute Life Saver productivity coach. Even if the servers are a bit busy, I'm right here with you. 
+      return `Hello! I am your Duewell productivity coach. Even if the servers are a bit busy, I'm right here with you. 
       
 What is currently stressing you out the most today? Let's take a deep breath and pick one tiny thing to untangle together.`;
     }
@@ -543,20 +543,234 @@ Let's tackle this with a clean slate:
     return res.json({ reply: fallbackAdvice });
   }
 
+  let modelName = "gemini-3.5-flash";
+  let systemInstruction = "You are Calm Counselor, an incredibly warm, compassionate, and supportive productivity coach. You excel at relieving student and professional anxiety, offering gentle micro-steps, and validating the user's stress while guiding them gently to write or study. Keep responses within 3 paragraphs and highly encouraging.";
+
+  if (role === "sergeant") {
+    modelName = "gemini-3.1-flash-lite";
+    systemInstruction = "You are Tactical Sergeant, an intense, highly energetic, firm, but ultimately loving drill instructor of productivity. You do NOT accept any excuses for procrastination. You call out procrastination immediately, use athletic coaching style terms (like 'soldier', 'deploy', 'focus engine'), and order the user to do a 10-minute sprint of work right now with absolutely zero phone distractions. Keep responses short, highly motivational, and punchy.";
+  } else if (role === "analyst") {
+    modelName = "gemini-3.1-pro-preview";
+    systemInstruction = "You are Academic Analyst, a highly cerebral, structured, intellectual study strategist. You specialize in breaking down complex syllabi, creating study timetables, designing spaced repetition and active recall schedules, and analyzing text difficulties. Your style is logical, strategic, and highly detailed. Keep responses structured and analytical.";
+  }
+
   try {
     const ai = getAIClient();
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
+
+    // Convert client-side simple history format to SDK format:
+    // `{ role: 'user' | 'model', parts: [{ text: string }] }`
+    const sdkHistory = (history || []).map((msg: any) => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text }]
+    }));
+
+    const chat = ai.chats.create({
+      model: modelName,
+      config: {
+        systemInstruction: systemInstruction,
+      },
+      history: sdkHistory
     });
 
-    const reply = response.text || "I am here to support you. Let's tackle one task at a time and clear that desk.";
+    const response = await chat.sendMessage({ message: message });
+    const reply = response.text || "I am here to support you. Let's take it one step at a time.";
     res.json({ reply });
   } catch (err) {
     console.error("AI Coach Chat error:", err);
-    isGeminiAPIBroken = true; // Flag API as broken so subsequent requests fallback instantly and silently!
     const fallbackAdvice = generateFallbackChatResponse(message);
     res.json({ reply: fallbackAdvice });
+  }
+});
+
+// 6. AI Explode Task Endpoint (Fast, gemini-3.1-flash-lite)
+app.post("/api/ai-explode-task", async (req, res) => {
+  const { title, description } = req.body;
+  if (!title) {
+    return res.status(400).json({ error: "title is required" });
+  }
+
+  function getFallbackSubtasks() {
+    return [
+      { title: `Prep: Gather materials & open workspace for: ${title}`, estimated_minutes: 5 },
+      { title: `Action: Complete first major chunk of "${title}" (25m Focus Sprint)`, estimated_minutes: 25 },
+      { title: `Polish: Review and refine your deliverables`, estimated_minutes: 10 }
+    ];
+  }
+
+  if (isGeminiAPIBroken || !process.env.GEMINI_API_KEY) {
+    return res.json({ subtasks: getFallbackSubtasks() });
+  }
+
+  try {
+    const ai = getAIClient();
+    const prompt = `You are a tactical productivity engine. Take the task title and description below, and explode/break it down into 3 to 5 highly actionable, sequential micro-steps to remove starting friction. Provide a reasonable time estimate in minutes for each step.
+    
+    Task Title: "${title}"
+    Task Description: "${description || "None"}"`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          required: ["subtasks"],
+          properties: {
+            subtasks: {
+              type: Type.ARRAY,
+              description: "A list of 3-5 tactical micro-subtasks to complete the task.",
+              items: {
+                type: Type.OBJECT,
+                required: ["title", "estimated_minutes"],
+                properties: {
+                  title: { type: Type.STRING, description: "Actionable description of the step (e.g. 'Draft the introduction paragraph')" },
+                  estimated_minutes: { type: Type.INTEGER, description: "Estimated time in minutes (e.g. 15)" }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("Empty response");
+    const data = JSON.parse(text);
+    res.json(data);
+  } catch (err) {
+    console.error("AI Explode Task error:", err);
+    res.json({ subtasks: getFallbackSubtasks() });
+  }
+});
+
+// 7. AI Refine Email Endpoint (General, gemini-3.5-flash)
+app.post("/api/ai-refine-email", async (req, res) => {
+  const { draft, instruction } = req.body;
+  if (!draft) {
+    return res.status(400).json({ error: "draft is required" });
+  }
+
+  if (isGeminiAPIBroken || !process.env.GEMINI_API_KEY) {
+    return res.json({ refinedDraft: draft + "\n\n(AI refiner unavailable - keeping original)" });
+  }
+
+  try {
+    const ai = getAIClient();
+    const prompt = `Refine and rewrite the following email draft according to this user instruction: "${instruction || "make it polished and extremely polite"}"
+    
+    Original Draft:
+    """
+    ${draft}
+    """
+    
+    Return only the refined email draft text under a single "refinedDraft" property. Keep any placeholders like [Your Name] intact.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          required: ["refinedDraft"],
+          properties: {
+            refinedDraft: { type: Type.STRING, description: "The updated, refined email draft text" }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("Empty response");
+    const data = JSON.parse(text);
+    res.json(data);
+  } catch (err) {
+    console.error("AI Refine Email error:", err);
+    res.json({ refinedDraft: draft });
+  }
+});
+
+// 8. AI Generate Strategy Endpoint (Complex, gemini-3.1-pro-preview)
+app.post("/api/ai-generate-strategy", async (req, res) => {
+  const { title, description, difficulty, category } = req.body;
+  if (!title) {
+    return res.status(400).json({ error: "title is required" });
+  }
+
+  function getFallbackPhases() {
+    return [
+      {
+        phase: "Phase 1: Concept Decoding (Feynman Mapping)",
+        details: `Deconstruct "${title}". Explain the core concepts aloud to find gaps in your understanding.`,
+        hoursNeeded: 2
+      },
+      {
+        phase: "Phase 2: Deep Focus Sprint & Active Recall",
+        details: "Work in 25-5 Pomodoro sprints. Write down 3 key active recall questions as you study.",
+        hoursNeeded: 3
+      },
+      {
+        phase: "Phase 3: Execution & Final Polish",
+        details: "Draft/code continuously without self-editing. Review and polish your deliverables against your goals.",
+        hoursNeeded: 1
+      }
+    ];
+  }
+
+  if (isGeminiAPIBroken || !process.env.GEMINI_API_KEY) {
+    return res.json({ phases: getFallbackPhases() });
+  }
+
+  try {
+    const ai = getAIClient();
+    const prompt = `You are "Academic Analyst", an elite structured educational coach and cognitive strategist.
+    Analyze the following academic task and design a chronological 3-step learning and prep strategy.
+    
+    Task: "${title}"
+    Description: "${description || "None"}"
+    Difficulty level: "${difficulty || "medium"}"
+    Category: "${category || "general"}"
+    
+    Return a structured JSON object containing exactly 3 phases:
+    Phase 1 (Concept/Decoding): Focuses on active recall and identifying gaps in understanding.
+    Phase 2 (Deep Study/Active Recall Exercises): Focuses on cognitive retention, active recall questions, or flashcards.
+    Phase 3 (Synthesis/Test run): Focuses on mock exams, final drafts, or continuous focus sprints.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          required: ["phases"],
+          properties: {
+            phases: {
+              type: Type.ARRAY,
+              description: "A chronological 3-step learning/execution roadmap.",
+              items: {
+                type: Type.OBJECT,
+                required: ["phase", "details", "hoursNeeded"],
+                properties: {
+                  phase: { type: Type.STRING, description: "Name of the study phase (e.g. 'Phase 1: Concept Decoding & Active Recall')" },
+                  details: { type: Type.STRING, description: "Specific exercises, active recall questions, and retention techniques for this phase" },
+                  hoursNeeded: { type: Type.INTEGER, description: "Estimated active study hours needed for this phase" }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("Empty response");
+    const data = JSON.parse(text);
+    res.json(data);
+  } catch (err) {
+    console.error("AI Generate Strategy error:", err);
+    res.json({ phases: getFallbackPhases() });
   }
 });
 

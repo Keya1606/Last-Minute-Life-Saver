@@ -70,6 +70,13 @@ interface ProductivityHubProps {
   isDarkTheme: boolean;
   searchQuery?: string;
   formatDeadline: (dateStr: string) => { formatted: string; urgencyClass: string; urgencyLabel: string; isOverdue: boolean };
+  
+  // AI premium additions
+  onExplodeTask: (taskId: string) => void;
+  onToggleSubtask: (taskId: string, subtaskId: string) => void;
+  onGenerateAcademicStrategy: (taskId: string) => void;
+  explodingTaskId: string | null;
+  roadmappingTaskId: string | null;
 }
 
 export default function ProductivityHub({
@@ -120,7 +127,12 @@ export default function ProductivityHub({
   aiPlanning,
   isDarkTheme,
   searchQuery = "",
-  formatDeadline
+  formatDeadline,
+  onExplodeTask,
+  onToggleSubtask,
+  onGenerateAcademicStrategy,
+  explodingTaskId,
+  roadmappingTaskId
 }: ProductivityHubProps) {
 
   // Category Colors helper
@@ -459,6 +471,99 @@ export default function ProductivityHub({
                           {task.aiTip && (
                             <div className="mt-3 p-3 rounded-[12px] text-[13px] italic font-medium border bg-[#F7F8FC] border-[#E5EAF5] text-[#1F2937]">
                               💡 {task.aiTip}
+                            </div>
+                          )}
+
+                          {/* Interactive AI Actions */}
+                          <div className="flex flex-wrap gap-2 pt-3">
+                            <button
+                              type="button"
+                              disabled={explodingTaskId === task.id || isDone}
+                              onClick={() => onExplodeTask(task.id)}
+                              className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+                                explodingTaskId === task.id 
+                                  ? "bg-indigo-50 border-indigo-200 text-[#5B6CFF]" 
+                                  : "bg-[#F7F8FC] hover:bg-indigo-50/50 border-[#E5EAF5] text-[#5B6CFF] hover:border-indigo-200"
+                              }`}
+                            >
+                              {explodingTaskId === task.id ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Exploding...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>💥 Explode Steps</span>
+                                </>
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={roadmappingTaskId === task.id || isDone}
+                              onClick={() => onGenerateAcademicStrategy(task.id)}
+                              className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+                                roadmappingTaskId === task.id 
+                                  ? "bg-cyan-50 border-cyan-200 text-cyan-600" 
+                                  : "bg-[#F7F8FC] hover:bg-cyan-50/50 border-[#E5EAF5] text-cyan-600 hover:border-cyan-200"
+                              }`}
+                            >
+                              {roadmappingTaskId === task.id ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Strategizing...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>🎓 Study Strategy</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Exploded Subtasks checklist */}
+                          {task.subtasks && task.subtasks.length > 0 && (
+                            <div className="mt-3.5 p-3.5 bg-indigo-50/30 border border-indigo-100/30 rounded-xl space-y-2.5" id={`task-subtasks-${task.id}`}>
+                              <p className="text-[11px] font-bold text-[#5B6CFF] uppercase tracking-wider flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Exploded Micro-Steps</span>
+                              </p>
+                              <div className="space-y-2">
+                                {task.subtasks.map((st) => (
+                                  <label 
+                                    key={st.id} 
+                                    className="flex items-center gap-2.5 text-xs font-semibold text-[#1F2937] cursor-pointer"
+                                  >
+                                    <input 
+                                      type="checkbox"
+                                      disabled={isDone}
+                                      checked={st.completed}
+                                      onChange={() => onToggleSubtask(task.id, st.id)}
+                                      className="w-4 h-4 rounded border-gray-300 text-[#5B6CFF] focus:ring-[#5B6CFF]"
+                                    />
+                                    <span className={st.completed ? "line-through text-gray-400" : ""}>{st.title}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Academic Roadmap Phases details list */}
+                          {task.academicRoadmap && task.academicRoadmap.length > 0 && (
+                            <div className="mt-3.5 p-3.5 bg-cyan-50/30 border border-cyan-100/30 rounded-xl space-y-3" id={`task-roadmap-${task.id}`}>
+                              <p className="text-[11px] font-bold text-cyan-600 uppercase tracking-wider flex items-center gap-1.5">
+                                <Award className="w-3.5 h-3.5 text-cyan-500" />
+                                <span>Academic Prep Strategic Roadmap</span>
+                              </p>
+                              <div className="space-y-2.5 relative border-l border-cyan-200/50 pl-3.5 ml-1.5">
+                                {task.academicRoadmap.map((p, idx) => (
+                                  <div key={idx} className="relative">
+                                    <div className="absolute -left-[19px] top-1 w-2.5 h-2.5 rounded-full bg-cyan-400 border-2 border-white" />
+                                    <p className="text-xs font-bold text-[#1F2937] leading-none">{p.phase} <span className="font-semibold text-cyan-600 font-mono text-[10px]">({p.hoursNeeded} hrs)</span></p>
+                                    <p className="text-[11px] text-[#5F6B7A] font-medium mt-1 leading-normal">{p.details}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>

@@ -7,7 +7,8 @@ import {
   Sparkles, ListFilter, AlertTriangle, Check, RefreshCw, Eye, Award, HelpCircle,
   AlertCircle, TrendingUp, Repeat, Mic, MicOff, Mail, Copy, X,
   LayoutDashboard, User, Settings, Search, Bell, Moon, Sun, ChevronRight, ChevronDown, Sliders, Activity, PanelLeftClose, PanelLeft,
-  Phone, Briefcase, Target, BookOpen, Volume2, VolumeX, Save, Edit2, Loader2
+  Phone, Briefcase, Target, BookOpen, Volume2, VolumeX, Save, Edit2, Loader2,
+  Trophy, Shield, Flame, Fingerprint, Star
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Sidebar from "./Sidebar";
@@ -257,10 +258,11 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
   const [notifications, setNotifications] = useState<Array<{ id: string; text: string; time: string; type: 'alert' | 'success' | 'info' }>>([]);
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [chatMessages, setChatMessages] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
-    { role: 'assistant', text: "Hello! I am Gemini, your Last-Minute Life Saver productivity coach. I know deadlines can feel terrifying, but together we can break through the paralysis. What is currently stressing you out the most today?" }
+    { role: 'assistant', text: "Hello! I am Gemini, your Duewell productivity coach. I know deadlines can feel terrifying, but together we can break through the paralysis. What is currently stressing you out the most today?" }
   ]);
   const [currentChatMessage, setCurrentChatMessage] = useState("");
   const [coachChatLoading, setCoachChatLoading] = useState(false);
+  const [coachRole, setCoachRole] = useState<"comfort" | "sergeant" | "analyst">("comfort");
   const [profileName, setProfileName] = useState("");
   const [profileIsEditing, setProfileIsEditing] = useState(false);
   const [profileEditName, setProfileEditName] = useState("");
@@ -279,6 +281,11 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
   const [detailsUpdateLoading, setDetailsUpdateLoading] = useState(false);
   const [detailsSuccessMessage, setDetailsSuccessMessage] = useState("");
   const [detailsErrorMessage, setDetailsErrorMessage] = useState("");
+  const [emailCopied, setEmailCopied] = useState(false);
+
+  // AI premium handlers state
+  const [explodingTaskId, setExplodingTaskId] = useState<string | null>(null);
+  const [roadmappingTaskId, setRoadmappingTaskId] = useState<string | null>(null);
 
   // App settings state
   const [workDuration, setWorkDuration] = useState(25);
@@ -507,6 +514,10 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
     if (e) e.preventDefault();
     const msg = currentChatMessage.trim();
     if (!msg) return;
+    
+    // Save current messages list to map into history
+    const historyList = [...chatMessages];
+    
     setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
     setCurrentChatMessage("");
     setCoachChatLoading(true);
@@ -514,7 +525,11 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
       const res = await fetch("/api/ai-coach-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
+        body: JSON.stringify({ 
+          message: msg,
+          role: coachRole,
+          history: historyList.map(h => ({ role: h.role === 'user' ? 'user' : 'model', text: h.text }))
+        })
       });
       const data = await res.json();
       setChatMessages(prev => [...prev, { role: 'assistant', text: data.reply || "I am here for you. Let's break things down together." }]);
@@ -851,6 +866,92 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
       setActionSuccess("Task removed successfully.");
     } catch (err) {
       setActionError("Failed to remove task.");
+    }
+  };
+
+  const handleExplodeTask = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    setExplodingTaskId(taskId);
+    setActionSuccess("");
+    setActionError("");
+    try {
+      const res = await fetch("/api/ai-explode-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: task.title, description: task.description })
+      });
+      const data = await res.json();
+      if (data.subtasks && Array.isArray(data.subtasks)) {
+        const formattedSubtasks = data.subtasks.map((st: string, i: number) => ({
+          id: i.toString(),
+          title: st,
+          completed: false
+        }));
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, subtasks: formattedSubtasks } : t));
+        try {
+          await dataService.updateTask(userId, taskId, { subtasks: formattedSubtasks });
+        } catch (e) {
+          console.warn("Supabase persistence omitted for subtasks, using React local memory:", e);
+        }
+        setActionSuccess(`Successfully exploded "${task.title}" into micro-steps!`);
+      } else {
+        setActionError("The AI didn't return any subtasks. Try again!");
+      }
+    } catch (err) {
+      setActionError("Failed to connect to the Exploder service.");
+    } finally {
+      setExplodingTaskId(null);
+    }
+  };
+
+  const handleToggleSubtask = async (taskId: string, subtaskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.subtasks) return;
+    const updatedSubtasks = task.subtasks.map(st => 
+      st.id === subtaskId ? { ...st, completed: !st.completed } : st
+    );
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, subtasks: updatedSubtasks } : t));
+    try {
+      await dataService.updateTask(userId, taskId, { subtasks: updatedSubtasks });
+    } catch (e) {
+      console.warn("Supabase persistence failed for subtasks, using local state:", e);
+    }
+  };
+
+  const handleGenerateAcademicStrategy = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    setRoadmappingTaskId(taskId);
+    setActionSuccess("");
+    setActionError("");
+    try {
+      const res = await fetch("/api/ai-generate-strategy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          title: task.title, 
+          description: task.description,
+          difficulty: task.difficulty,
+          category: task.category
+        })
+      });
+      const data = await res.json();
+      if (data.phases && Array.isArray(data.phases)) {
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, academicRoadmap: data.phases } : t));
+        try {
+          await dataService.updateTask(userId, taskId, { academicRoadmap: data.phases });
+        } catch (e) {
+          console.warn("Supabase persistence omitted for roadmap, using React local memory:", e);
+        }
+        setActionSuccess(`Generated an exam prep learning strategy for "${task.title}"!`);
+      } else {
+        setActionError("The AI strategist didn't return a valid roadmap.");
+      }
+    } catch (err) {
+      setActionError("Failed to generate strategic roadmap.");
+    } finally {
+      setRoadmappingTaskId(null);
     }
   };
 
@@ -1594,6 +1695,11 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
               isDarkTheme={isDarkTheme}
               searchQuery={searchQuery}
               formatDeadline={formatDeadline}
+              onExplodeTask={handleExplodeTask}
+              onToggleSubtask={handleToggleSubtask}
+              onGenerateAcademicStrategy={handleGenerateAcademicStrategy}
+              explodingTaskId={explodingTaskId}
+              roadmappingTaskId={roadmappingTaskId}
             />
           )}
 
@@ -1688,203 +1794,776 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
               onSendChatMessage={handleSendChatMessage}
               coachChatLoading={coachChatLoading}
               isDarkTheme={isDarkTheme}
+              selectedRole={coachRole}
+              onRoleChange={setCoachRole}
+              tasks={tasks}
+              habits={habits}
+              taskCompletionPercent={taskCompletionPercent}
             />
           )}
 
           {/* VIEW: 6. PROFILE TAB */}
           {activeView === "profile" && (
-            <div className="max-w-2xl mx-auto space-y-6">
+            <div className="max-w-7xl mx-auto space-y-6 animate-fade-in" id="profile-container">
               
-              {/* Profile Card */}
-              <div className={`custom-card p-8 border ${cardBg} space-y-6`} id="profile-container">
-                <div className="flex items-center gap-4 pb-5 border-b border-[#E5EAF5]">
-                  <div className="w-16 h-16 rounded-[16px] bg-[#5B6CFF] flex items-center justify-center font-outfit text-2xl font-black text-white shrink-0 uppercase shadow-sm">
-                    {profileName ? profileName.slice(0, 2) : userEmail.slice(0, 2)}
+              {/* Hero Profile Card & Momentum Score Side-by-Side */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="profile-top-panel">
+                
+                {/* Hero Profile Card (lg:col-span-8) */}
+                <div className="lg:col-span-8 relative overflow-hidden rounded-[24px] bg-gradient-to-r from-[#EEF2FF] via-[#F5F3FF] to-[#FAE8FF] p-8 text-[#1F2937] border border-[#E2E8F0] shadow-xs flex flex-col justify-between min-h-[200px]">
+                  {/* Soft floating sparkle/star decorations matching the reference image */}
+                  <div className="absolute top-4 left-6 text-indigo-300 opacity-40 pointer-events-none">
+                    <Sparkles className="w-5 h-5" />
                   </div>
-                  <div>
-                    <h3 className="font-outfit font-semibold text-[18px] text-[#1F2937]">{profileName || "Anonymous Saver"}</h3>
-                    <p className="text-[15px] text-[#5F6B7A] font-medium">{userEmail}</p>
+                  <div className="absolute top-1/2 right-6 text-purple-300 opacity-40 pointer-events-none">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="absolute bottom-4 left-1/3 text-pink-300 opacity-40 pointer-events-none">
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10 w-full">
+                    {/* Large Circular Avatar with dual-ring design & green online dot */}
+                    <div className="relative shrink-0">
+                      <div className="w-24 h-24 rounded-full border border-indigo-100 flex items-center justify-center p-1 bg-gradient-to-tr from-[#C084FC] via-[#818CF8] to-[#60A5FA] bg-opacity-20 shadow-xs">
+                        <div className="w-full h-full rounded-full bg-white flex items-center justify-center p-1">
+                          <div className="w-full h-full rounded-full bg-[#3B82F6] flex items-center justify-center font-outfit text-2xl font-black text-white uppercase tracking-tight shadow-md">
+                            {profileName ? profileName.slice(0, 2) : userEmail.slice(0, 2)}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Pulsing online indicator green dot */}
+                      <div className="absolute bottom-1 right-2 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-xs z-20">
+                        <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-75 animate-ping" />
+                      </div>
+                    </div>
+ 
+                    {/* Profile details */}
+                    <div className="space-y-3.5 text-center sm:text-left flex-1 w-full">
+                      <div className="space-y-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-center sm:justify-start gap-1.5">
+                          <span className="text-[24px] text-[#1F2937] font-medium">Hello,</span>
+                          <span className="text-[24px] text-[#1F2937] font-extrabold">{profileName || "Anonymous Saver"}</span>
+                          <span className="text-[24px] animate-bounce">👋</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-center sm:justify-start gap-2 text-[#5F6B7A] text-[14px] font-semibold mt-1">
+                          <span>{userEmail}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(userEmail);
+                              setEmailCopied(true);
+                              setTimeout(() => setEmailCopied(false), 2000);
+                            }}
+                            className="p-1 rounded-md hover:bg-white text-[#3B82F6] hover:text-[#2563EB] transition-all cursor-pointer relative"
+                            title="Copy email to clipboard"
+                          >
+                            {emailCopied ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                            {emailCopied && (
+                              <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-black text-white text-[10px] rounded shadow font-sans whitespace-nowrap z-30">
+                                Copied!
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+ 
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                        <span className="px-3 py-1 text-[10px] font-extrabold rounded-full bg-indigo-100 text-[#4F46E5] font-mono uppercase tracking-wider">
+                          MITIGATION FORCE · {
+                            tasks.filter(t => t.status === "completed").length >= 5 ? (
+                              "LEVEL 3 (CRISIS MASTER)"
+                            ) : tasks.filter(t => t.status === "completed").length >= 2 ? (
+                              "LEVEL 2 (ACTIVE RESCUER)"
+                            ) : (
+                              "LEVEL 1 (ROOKIE DEFUSER)"
+                            )
+                          }
+                        </span>
+                      </div>
+                      
+                      <p className="text-[13px] text-[#5F6B7A] font-medium italic mt-4">
+                        "{bio || "Small steps today, unstoppable tomorrow."}"
+                      </p>
+                    </div>
                   </div>
                 </div>
-
-                <form onSubmit={handleUpdateProfileName} className="space-y-5">
-                  <div>
-                    <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider mb-2">Configure Full Name</label>
-                    <input
-                      type="text"
-                      placeholder="Enter your name..."
-                      value={profileEditName}
-                      onChange={(e) => setProfileEditName(e.target.value)}
-                      className="w-full px-4.5 py-3 text-[15px] font-medium rounded-[14px] border border-[#E5EAF5] bg-[#F7F8FC] text-[#1F2937] outline-none focus:ring-4 focus:ring-[#5B6CFF]/12 focus:border-[#5B6CFF]"
-                      id="profile-fullname-input"
-                    />
+ 
+                {/* Momentum Score Card (lg:col-span-4) */}
+                <div className="lg:col-span-4 bg-white p-6 border border-[#E5EAF5] rounded-[24px] shadow-xs flex flex-col justify-between min-h-[200px] hover:scale-[1.01] hover:shadow-md transition-all duration-250 ease-in-out">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Momentum Score</p>
                   </div>
-
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="submit"
-                      disabled={profileUpdateLoading}
-                      className="px-5 py-3 bg-[#5B6CFF] hover:bg-[#4758E8] text-white font-semibold text-[15px] rounded-[14px] transition-all duration-250 hover:scale-[1.02] cursor-pointer disabled:opacity-40 shadow-sm"
-                    >
-                      {profileUpdateLoading ? "Updating..." : "Save Full Name"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Basic User Details Card */}
-              <div className={`custom-card p-6 bg-white border border-[#E5EAF5] rounded-[20px] space-y-6`} id="profile-basic-details-card">
-                <div className="flex items-center justify-between pb-4 border-b border-[#E5EAF5]">
-                  <h3 className="font-outfit text-lg font-semibold text-[#1F2937] flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-[#5B6CFF]" /> Professional & Personal Details
-                  </h3>
-                  {!isEditingDetails && (
-                    <button
-                      onClick={() => {
-                        setEditPhone(phone);
-                        setEditOccupation(occupation);
-                        setEditFocusArea(focusArea);
-                        setEditBio(bio);
-                        setIsEditingDetails(true);
-                      }}
-                      className="text-[13px] text-[#5B6CFF] hover:text-[#4758E8] font-semibold flex items-center gap-1 transition-all cursor-pointer"
-                      id="profile-edit-details-btn"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" /> Edit details
-                    </button>
-                  )}
-                </div>
-
-                {detailsSuccessMessage && (
-                  <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-[12px] text-[13px] font-medium">
-                    {detailsSuccessMessage}
-                  </div>
-                )}
-                {detailsErrorMessage && (
-                  <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-[12px] text-[13px] font-medium">
-                    {detailsErrorMessage}
-                  </div>
-                )}
-
-                {isEditingDetails ? (
-                  <form onSubmit={handleUpdateDetails} className="space-y-4">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                        <Briefcase className="w-3.5 h-3.5 text-[#5B6CFF]" /> Role / Occupation
-                      </label>
-                      <input
-                        type="text"
-                        value={editOccupation}
-                        onChange={(e) => setEditOccupation(e.target.value)}
-                        placeholder="E.g. Student, Software Developer, Freelancer"
-                        className="w-full px-4 py-2.5 bg-[#F7F8FC] border border-[#E5EAF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[12px] transition-colors font-medium text-[#1F2937]"
-                        id="details-occupation-input"
-                      />
+ 
+                  {/* Circular progress and metrics */}
+                  <div className="flex items-center gap-6 py-2">
+                    {/* Animated Circular Progress Ring */}
+                    <div className="relative shrink-0 flex items-center justify-center">
+                      <svg className="w-20 h-20 transform -rotate-90">
+                        {/* Track circle */}
+                        <circle
+                          cx="40"
+                          cy="40"
+                          r="32"
+                          stroke="#F3F4F6"
+                          strokeWidth="6"
+                          fill="transparent"
+                        />
+                        {/* Progress circle */}
+                        <circle
+                          cx="40"
+                          cy="40"
+                          r="32"
+                          stroke="#3B82F6"
+                          strokeWidth="6"
+                          fill="transparent"
+                          strokeDasharray="201.06"
+                          strokeDashoffset={201.06 - (201.06 * taskCompletionPercent) / 100}
+                          strokeLinecap="round"
+                          className="transition-all duration-1000 ease-out"
+                        />
+                      </svg>
+                      {/* Inner text overlay */}
+                      <div className="absolute flex flex-col items-center justify-center">
+                        <span className="font-outfit text-xl font-black text-[#1F2937] leading-none">{taskCompletionPercent}%</span>
+                      </div>
                     </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5 text-[#5B6CFF]" /> Phone Number
-                      </label>
-                      <input
-                        type="text"
-                        value={editPhone}
-                        onChange={(e) => setEditPhone(e.target.value)}
-                        placeholder="E.g. +1 (555) 000-0000"
-                        className="w-full px-4 py-2.5 bg-[#F7F8FC] border border-[#E5EAF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[12px] transition-colors font-medium text-[#1F2937]"
-                        id="details-phone-input"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                        <Target className="w-3.5 h-3.5 text-[#5B6CFF]" /> Primary Focus Area
-                      </label>
-                      <select
-                        value={editFocusArea}
-                        onChange={(e) => setEditFocusArea(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-[#F7F8FC] border border-[#E5EAF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[12px] transition-colors font-medium text-[#1F2937]"
-                        id="details-focus-input"
-                      >
-                        <option value="">Select Focus Area...</option>
-                        <option value="Academic (Exams & Classes)">Academic (Exams & Classes)</option>
-                        <option value="Professional (Work Deadlines)">Professional (Work Deadlines)</option>
-                        <option value="Personal Goals & Habits">Personal Goals & Habits</option>
-                        <option value="Mixed Tasks & Projects">Mixed Tasks & Projects</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                        <BookOpen className="w-3.5 h-3.5 text-[#5B6CFF]" /> Rescuer Motto / Bio
-                      </label>
-                      <textarea
-                        value={editBio}
-                        onChange={(e) => setEditBio(e.target.value)}
-                        placeholder="Write a brief motto or description..."
-                        rows={3}
-                        className="w-full px-4 py-2.5 bg-[#F7F8FC] border border-[#E5EAF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[12px] transition-colors font-medium text-[#1F2937] resize-none"
-                        id="details-bio-input"
-                      />
-                    </div>
-
-                    <div className="flex gap-2.5 justify-end pt-2">
-                      <button
-                        type="submit"
-                        disabled={detailsUpdateLoading}
-                        className="px-4 py-2.5 bg-[#5B6CFF] hover:bg-[#4758E8] text-white text-[13px] font-bold rounded-[12px] flex items-center gap-1.5 transition-all cursor-pointer"
-                        id="details-save-btn"
-                      >
-                        {detailsUpdateLoading ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <>
-                            <Check className="w-3.5 h-3.5" /> Save Details
-                          </>
-                        )}
-                      </button>
+ 
+                    <div className="space-y-2">
+                      <p className="text-[14px] text-[#1F2937] font-bold leading-snug">
+                        Keep building your momentum! 🚀
+                      </p>
+                      
                       <button
                         type="button"
-                        onClick={() => setIsEditingDetails(false)}
-                        className="px-4 py-2.5 border border-[#E5EAF5] hover:bg-[#F7F8FC] text-[#5F6B7A] text-[13px] font-bold rounded-[12px] transition-all cursor-pointer"
-                        id="details-cancel-btn"
+                        onClick={() => setActiveView("momentum")}
+                        className="text-[12px] font-extrabold text-[#3B82F6] hover:text-[#2563EB] transition-all cursor-pointer flex items-center gap-1.5 bg-[#EFF6FF] hover:bg-[#EFF6FF]/80 px-4 py-2 rounded-xl"
                       >
-                        Cancel
+                        <TrendingUp className="w-3.5 h-3.5" />
+                        <span>View Analytics</span>
                       </button>
                     </div>
-                  </form>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Occupation</span>
-                        <p className="text-[14px] font-medium text-[#1F2937]">
-                          {occupation || <span className="text-gray-400 italic font-light">Not specified</span>}
-                        </p>
+                  </div>
+                  
+                  <div className="h-2" />
+                </div>
+              </div>
+
+              {/* Secondary Layout: Forms, Stats & AI Coach */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Left Column: Personal Information & Motto */}
+                <div className="lg:col-span-5 space-y-6">
+                  
+                  {/* Customize Identity Card */}
+                  <div className={`bg-white p-6 border border-[#E5EAF5] rounded-[24px] space-y-5 shadow-xs relative`} id="profile-editor-card">
+                    <div className="flex items-center justify-between pb-3 border-b border-[#E5EAF5]">
+                      <div>
+                        <h3 className="font-outfit text-lg font-extrabold text-[#1F2937]">
+                          Customize Identity
+                        </h3>
+                        <p className="text-[12px] text-[#5F6B7A] font-medium mt-0.5">Update your personal details and preferences</p>
                       </div>
-                      <div className="space-y-1">
-                        <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Phone Number</span>
-                        <p className="text-[14px] font-medium text-[#1F2937]">
-                          {phone || <span className="text-gray-400 italic font-light">Not specified</span>}
-                        </p>
+                      
+                      {!isEditingDetails && (
+                        <button
+                          onClick={() => {
+                            setProfileEditName(profileName);
+                            setEditPhone(phone);
+                            setEditOccupation(occupation);
+                            setEditFocusArea(focusArea);
+                            setEditBio(bio);
+                            setIsEditingDetails(true);
+                          }}
+                          className="px-3 py-1.5 border border-[#E5EAF5] hover:border-[#3B82F6] text-[12px] text-[#3B82F6] bg-white hover:bg-[#EFF6FF] font-bold flex items-center gap-1.5 rounded-xl transition-all cursor-pointer"
+                          id="profile-edit-trigger-btn"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Edit Profile
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Status feedback boxes */}
+                    {detailsSuccessMessage && (
+                      <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-[12px] font-semibold flex items-center gap-2 animate-fade-in">
+                        <Check className="w-4 h-4 shrink-0" />
+                        <span>{detailsSuccessMessage}</span>
+                      </div>
+                    )}
+                    {detailsErrorMessage && (
+                      <div className="p-3 bg-rose-50 border border-rose-100 text-rose-700 rounded-xl text-[12px] font-semibold flex items-center gap-2 animate-fade-in">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{detailsErrorMessage}</span>
+                      </div>
+                    )}
+
+                    {isEditingDetails ? (
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const trimmedName = profileEditName.trim();
+                        if (trimmedName) {
+                          setProfileUpdateLoading(true);
+                          try {
+                            if (isSupabaseConfigured && supabase) {
+                              await supabase.auth.updateUser({ data: { full_name: trimmedName } });
+                            }
+                            localStorage.setItem("lifesaver_user_full_name", trimmedName);
+                            setProfileName(trimmedName);
+                            window.dispatchEvent(
+                              new CustomEvent("profile-updated", { detail: { fullName: trimmedName } })
+                            );
+                          } catch (err) {
+                            console.error("Name save error:", err);
+                          } finally {
+                            setProfileUpdateLoading(false);
+                          }
+                        }
+                        handleUpdateDetails(e);
+                      }} className="space-y-4">
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider flex items-center gap-1">
+                            <User className="w-3.5 h-3.5 text-[#3B82F6]" /> Full Name
+                          </label>
+                          <input
+                            type="text"
+                            value={profileEditName}
+                            onChange={(e) => setProfileEditName(e.target.value)}
+                            placeholder="Enter your name..."
+                            className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#3B82F6] focus:bg-white outline-none text-[13px] rounded-xl transition-all font-semibold text-[#1F2937]"
+                            id="profile-fullname-input"
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider flex items-center gap-1">
+                              <Briefcase className="w-3.5 h-3.5 text-[#3B82F6]" /> Occupation
+                            </label>
+                            <input
+                              type="text"
+                              value={editOccupation}
+                              onChange={(e) => setEditOccupation(e.target.value)}
+                              placeholder="E.g. Rescuer, Student"
+                              className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#3B82F6] focus:bg-white outline-none text-[13px] rounded-xl transition-all font-semibold text-[#1F2937]"
+                              id="details-occupation-input"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider flex items-center gap-1">
+                              <Phone className="w-3.5 h-3.5 text-[#3B82F6]" /> Phone Number
+                            </label>
+                            <input
+                              type="text"
+                              value={editPhone}
+                              onChange={(e) => setEditPhone(e.target.value)}
+                              placeholder="E.g. +1 (555) 000-0000"
+                              className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#3B82F6] focus:bg-white outline-none text-[13px] rounded-xl transition-all font-semibold text-[#1F2937]"
+                              id="details-phone-input"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider flex items-center gap-1">
+                            <Target className="w-3.5 h-3.5 text-[#3B82F6]" /> Focus Area
+                          </label>
+                          <select
+                            value={editFocusArea}
+                            onChange={(e) => setEditFocusArea(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#3B82F6] focus:bg-white outline-none text-[13px] rounded-xl transition-all font-semibold text-[#1F2937]"
+                            id="details-focus-input"
+                          >
+                            <option value="">Select Focus Area...</option>
+                            <option value="Academic (Exams & Classes)">Academic (Exams & Classes)</option>
+                            <option value="Professional (Work Deadlines)">Professional (Work Deadlines)</option>
+                            <option value="Personal Goals & Habits">Personal Goals & Habits</option>
+                            <option value="Mixed Tasks & Projects">Mixed Tasks & Projects</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider flex items-center gap-1">
+                            <BookOpen className="w-3.5 h-3.5 text-[#3B82F6]" /> Personal Motto / Bio
+                          </label>
+                          <textarea
+                            value={editBio}
+                            onChange={(e) => setEditBio(e.target.value)}
+                            placeholder="Write a motto that keeps you going..."
+                            rows={2}
+                            className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#3B82F6] focus:bg-white outline-none text-[13px] rounded-xl transition-all font-semibold text-[#1F2937] resize-none"
+                            id="details-bio-input"
+                          />
+                        </div>
+
+                        <div className="flex gap-2 justify-end pt-2 border-t border-[#E5EAF5]">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingDetails(false)}
+                            className="px-4 py-2 border border-[#E2E8F0] hover:bg-[#F8FAFC] text-[#5F6B7A] text-[12px] font-bold rounded-xl transition-all cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={detailsUpdateLoading || profileUpdateLoading}
+                            className="px-4 py-2 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-[12px] font-bold rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                          >
+                            {detailsUpdateLoading || profileUpdateLoading ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <>
+                                <Check className="w-3.5 h-3.5" /> Save Changes
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Display Profile Fields */}
+                        <div className="flex items-center gap-4 pb-3 border-b border-[#F8FAFC] last:border-0 last:pb-0">
+                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center shrink-0">
+                            <User className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="block text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-wider">Full Name</span>
+                            <span className="block text-[14px] font-bold text-[#1F2937] truncate mt-0.5">
+                              {profileName || "Anonymous Saver"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 pb-3 border-b border-[#F8FAFC] last:border-0 last:pb-0">
+                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center shrink-0">
+                            <Briefcase className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="block text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-wider">Occupation</span>
+                            <span className="block text-[14px] font-bold text-[#1F2937] truncate mt-0.5">
+                              {occupation || <span className="text-gray-400 italic font-normal">Not specified</span>}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 pb-3 border-b border-[#F8FAFC] last:border-0 last:pb-0">
+                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center shrink-0">
+                            <Phone className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="block text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-wider">Phone Number</span>
+                            <span className="block text-[14px] font-bold text-[#1F2937] truncate mt-0.5">
+                              {phone || <span className="text-gray-400 italic font-normal">Not specified</span>}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 pb-3 last:border-0">
+                          <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#3B82F6] flex items-center justify-center shrink-0">
+                            <Target className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="block text-[10px] font-extrabold text-[#94A3B8] uppercase tracking-wider">Focus Area</span>
+                            <span className="block text-[14px] font-bold text-[#1F2937] truncate mt-0.5">
+                              {focusArea || <span className="text-gray-400 italic font-normal">Not specified</span>}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Motto Sub-card with soft purple gradient matching the screenshot */}
+                        <div className="bg-gradient-to-r from-[#EEF2FF] to-[#E0E7FF] rounded-2xl p-5 border border-indigo-100/50 mt-5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                <Target className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h5 className="text-[13px] font-bold text-[#1F2937]">Your Motto</h5>
+                                <p className="text-[10px] text-[#5F6B7A] font-medium">This is your personal battle cry. Keep it inspiring!</p>
+                              </div>
+                            </div>
+                            {!isEditingDetails && (
+                              <button
+                                onClick={() => {
+                                  setProfileEditName(profileName);
+                                  setEditPhone(phone);
+                                  setEditOccupation(occupation);
+                                  setEditFocusArea(focusArea);
+                                  setEditBio(bio);
+                                  setIsEditingDetails(true);
+                                }}
+                                className="w-7 h-7 rounded-full bg-white text-indigo-600 flex items-center justify-center hover:shadow-xs transition-shadow cursor-pointer border border-indigo-50"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-center mt-4">
+                            <p className="text-[15px] font-extrabold text-[#4F46E5] italic leading-relaxed flex items-center justify-center gap-1.5">
+                              <span className="text-indigo-400">✦</span>
+                              <span>"{bio || "Ready to crush the next tight deadline!"}"</span>
+                              <span className="text-indigo-400">✦</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Column: Mini Statistics Grid & Crisis Rescue Medals */}
+                <div className="lg:col-span-7 space-y-6">
+                  
+                  {/* Achievement Cards (2x2 Grid) */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Card 1: Tasks Completed */}
+                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                      <div className="flex items-center justify-between">
+                        <div className="w-10 h-10 bg-[#E8FBF2] text-[#10B981] rounded-xl flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        {/* Tiny decorative Sparkline SVG */}
+                        <svg className="w-12 h-6 text-emerald-400 shrink-0" viewBox="0 0 40 20">
+                          <path d="M0,15 Q10,5 20,15 T40,10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="font-outfit text-2xl font-black text-[#1F2937] leading-none block">
+                          {tasks.filter(t => t.status === "completed").length}
+                        </span>
+                        <span className="text-[12px] font-extrabold text-[#1F2937] block mt-1">Tasks Conquered</span>
+                        <span className="text-[10px] text-[#5F6B7A] font-medium block">Total completed</span>
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Primary Focus Area</span>
-                      <p className="text-[14px] font-medium text-[#1F2937]">
-                        {focusArea || <span className="text-gray-400 italic font-light">Not specified</span>}
-                      </p>
+                    {/* Card 2: Active Habits */}
+                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                      <div className="flex items-center justify-between">
+                        <div className="w-10 h-10 bg-[#EEF2FF] text-[#3B82F6] rounded-xl flex items-center justify-center shrink-0">
+                          <Calendar className="w-5 h-5" />
+                        </div>
+                        {/* Tiny decorative Sparkline SVG */}
+                        <svg className="w-12 h-6 text-blue-400 shrink-0" viewBox="0 0 40 20">
+                          <path d="M0,12 Q10,18 20,8 T40,12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="font-outfit text-2xl font-black text-[#1F2937] leading-none block">
+                          {habits.length}
+                        </span>
+                        <span className="text-[12px] font-extrabold text-[#1F2937] block mt-1">Habits Active</span>
+                        <span className="text-[10px] text-[#5F6B7A] font-medium block">Currently active</span>
+                      </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Rescuer Bio / Motto</span>
-                      <p className="text-[14px] italic text-gray-600 bg-[#F7F8FC] p-3 rounded-[12px] border border-[#E5EAF5] leading-relaxed">
-                        "{bio || "Ready to crush the next tight deadline!"}"
-                      </p>
+                    {/* Card 3: Peak Momentum */}
+                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                      <div className="flex items-center justify-between">
+                        <div className="w-10 h-10 bg-[#F5F3FF] text-[#8B5CF6] rounded-xl flex items-center justify-center shrink-0">
+                          <Zap className="w-5 h-5" />
+                        </div>
+                        {/* Tiny decorative Sparkline SVG */}
+                        <svg className="w-12 h-6 text-purple-400 shrink-0" viewBox="0 0 40 20">
+                          <path d="M0,15 Q10,10 20,15 T40,5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="font-outfit text-2xl font-black text-[#1F2937] leading-none block">
+                          {taskCompletionPercent}%
+                        </span>
+                        <span className="text-[12px] font-extrabold text-[#1F2937] block mt-1">Peak Momentum</span>
+                        <span className="text-[10px] text-[#5F6B7A] font-medium block">Your best score</span>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Badges Earned */}
+                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                      <div className="flex items-center justify-between">
+                        <div className="w-10 h-10 bg-[#FFFBEB] text-[#F59E0B] rounded-xl flex items-center justify-center shrink-0">
+                          <Trophy className="w-5 h-5" />
+                        </div>
+                        {/* Tiny decorative Sparkline SVG */}
+                        <svg className="w-12 h-6 text-amber-400 shrink-0" viewBox="0 0 40 20">
+                          <path d="M0,18 Q10,14 20,16 T40,12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="font-outfit text-2xl font-black text-[#1F2937] leading-none block">
+                          {
+                            [
+                              tasks.filter(t => t.status === 'completed').length > 0,
+                              habits.length > 0,
+                              chatMessages.length > 1,
+                              tasks.length > 0 && tasks.filter(t => t.priority === 'urgent').length === 0,
+                              habits.some(h => (h.streak || 0) >= 3),
+                              taskCompletionPercent >= 80 && tasks.length > 0
+                            ].filter(Boolean).length
+                          } / 6
+                        </span>
+                        <span className="text-[12px] font-extrabold text-[#1F2937] block mt-1">Badges Earned</span>
+                        <span className="text-[10px] text-[#5F6B7A] font-medium block">Keep going!</span>
+                      </div>
                     </div>
                   </div>
-                )}
+
+                  {/* Medals & Achievements Collection Card */}
+                  <div className="bg-white p-6 border border-[#E5EAF5] rounded-[24px] space-y-5" id="profile-achievements-card">
+                    <div className="flex items-center justify-between border-b border-[#E5EAF5] pb-4">
+                      <div>
+                        <h3 className="font-outfit text-lg font-bold text-[#1F2937]">
+                          Crisis Rescue Medals
+                        </h3>
+                        <p className="text-[12px] text-[#5F6B7A] font-medium mt-0.5">Achievements unlocked through your actions</p>
+                      </div>
+                      <span className="px-3 py-1 bg-[#FFFAF0] text-[#D97706] rounded-full text-[11px] font-black uppercase tracking-wider font-mono shrink-0 border border-[#FEE2E2]">
+                        {
+                          [
+                            tasks.filter(t => t.status === 'completed').length > 0,
+                            habits.length > 0,
+                            chatMessages.length > 1,
+                            tasks.length > 0 && tasks.filter(t => t.priority === 'urgent').length === 0,
+                            habits.some(h => (h.streak || 0) >= 3),
+                            taskCompletionPercent >= 80 && tasks.length > 0
+                          ].filter(Boolean).length
+                        } / 6 Unlocked
+                      </span>
+                    </div>
+
+                    {/* Badges responsive grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="badges-grid-container">
+                      
+                      {/* Badge 1: Deadline Defuser */}
+                      {(() => {
+                        const isUnlocked = tasks.filter(t => t.status === 'completed').length > 0;
+                        return (
+                          <div className={`p-4 rounded-[16px] border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                            isUnlocked 
+                              ? 'bg-[#FFFDF5] border-amber-200 shadow-xs' 
+                              : 'bg-gray-50/50 border-gray-100 opacity-55 grayscale'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isUnlocked ? 'bg-[#F59E0B] text-white shadow-xs' : 'bg-gray-200 text-gray-400'
+                              }`}>
+                                <Flame className={`w-5 h-5 ${isUnlocked ? 'animate-pulse' : ''}`} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-extrabold text-[#1F2937] truncate">Deadline Defuser</p>
+                                {isUnlocked && (
+                                  <span className="inline-block text-[9px] font-black bg-[#FEF3C7] text-[#D97706] px-1.5 py-0.5 rounded-full uppercase mt-1">
+                                    ON
+                                  </span>
+                                )}
+                                <p className="text-[11px] text-[#5F6B7A] leading-normal font-medium mt-1">Completed your first critical task.</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Badge 2: Routine Gladiator */}
+                      {(() => {
+                        const isUnlocked = habits.length > 0;
+                        return (
+                          <div className={`p-4 rounded-[16px] border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                            isUnlocked 
+                              ? 'bg-[#F9FAFB] border-blue-200 shadow-xs' 
+                              : 'bg-gray-50/50 border-gray-100 opacity-55 grayscale'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isUnlocked ? 'bg-[#3B82F6] text-white shadow-xs' : 'bg-gray-200 text-gray-400'
+                              }`}>
+                                <Repeat className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-extrabold text-[#1F2937] truncate">Routine Gladiator</p>
+                                {isUnlocked && (
+                                  <span className="inline-block text-[9px] font-black bg-[#DBEAFE] text-[#1D4ED8] px-1.5 py-0.5 rounded-full uppercase mt-1">
+                                    ON
+                                  </span>
+                                )}
+                                <p className="text-[11px] text-[#5F6B7A] leading-normal font-medium mt-1">Built a daily routine.</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Badge 3: Streak Sovereign */}
+                      {(() => {
+                        const isUnlocked = habits.some(h => (h.streak || 0) >= 3);
+                        return (
+                          <div className={`p-4 rounded-[16px] border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                            isUnlocked 
+                              ? 'bg-[#FFF5F5] border-rose-200 shadow-xs' 
+                              : 'bg-gray-50/50 border-gray-100 opacity-55 grayscale'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isUnlocked ? 'bg-[#EC4899] text-white shadow-xs' : 'bg-gray-200 text-gray-400'
+                              }`}>
+                                <Trophy className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-extrabold text-[#1F2937] truncate">Streak Sovereign</p>
+                                {isUnlocked && (
+                                  <span className="inline-block text-[9px] font-black bg-[#FCE7F3] text-[#BE185D] px-1.5 py-0.5 rounded-full uppercase mt-1">
+                                    ON
+                                  </span>
+                                )}
+                                <p className="text-[11px] text-[#5F6B7A] leading-normal font-medium mt-1">Maintained a 3-day streak.</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Badge 4: Gemini Specialist */}
+                      {(() => {
+                        const isUnlocked = chatMessages.length > 1;
+                        return (
+                          <div className={`p-4 rounded-[16px] border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                            isUnlocked 
+                              ? 'bg-cyan-50/30 border-cyan-200 shadow-xs' 
+                              : 'bg-gray-50/50 border-gray-100 opacity-55 grayscale'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isUnlocked ? 'bg-cyan-500 text-white shadow-xs' : 'bg-[#F1F5F9] text-gray-400'
+                              }`}>
+                                <Sparkles className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-extrabold text-[#1F2937] truncate">Gemini Specialist</p>
+                                {isUnlocked && (
+                                  <span className="inline-block text-[9px] font-black bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded-full uppercase mt-1">
+                                    ON
+                                  </span>
+                                )}
+                                <p className="text-[11px] text-[#5F6B7A] leading-normal font-medium mt-1">Used AI coach during anxiety.</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Badge 5: Anxiety Tamer */}
+                      {(() => {
+                        const isUnlocked = tasks.length > 0 && tasks.filter(t => t.priority === 'urgent').length === 0;
+                        return (
+                          <div className={`p-4 rounded-[16px] border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                            isUnlocked 
+                              ? 'bg-emerald-50/30 border-emerald-200 shadow-xs' 
+                              : 'bg-gray-50/50 border-gray-100 opacity-55 grayscale'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isUnlocked ? 'bg-emerald-500 text-white shadow-xs' : 'bg-[#F1F5F9] text-gray-400'
+                              }`}>
+                                <Shield className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-extrabold text-[#1F2937] truncate">Anxiety Tamer</p>
+                                {isUnlocked && (
+                                  <span className="inline-block text-[9px] font-black bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full uppercase mt-1">
+                                    ON
+                                  </span>
+                                )}
+                                <p className="text-[11px] text-[#5F6B7A] leading-normal font-medium mt-1">Cleared high-urgent panic alerts.</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Badge 6: Peak Momentum */}
+                      {(() => {
+                        const isUnlocked = taskCompletionPercent >= 80 && tasks.length > 0;
+                        return (
+                          <div className={`p-4 rounded-[16px] border flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${
+                            isUnlocked 
+                              ? 'bg-violet-50/30 border-violet-200 shadow-xs' 
+                              : 'bg-gray-50/50 border-gray-100 opacity-55 grayscale'
+                          }`}>
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                                isUnlocked ? 'bg-violet-500 text-white shadow-xs' : 'bg-[#F1F5F9] text-gray-400'
+                              }`}>
+                                <Star className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[13px] font-extrabold text-[#1F2937] truncate">Peak Momentum</p>
+                                {isUnlocked && (
+                                  <span className="inline-block text-[9px] font-black bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full uppercase mt-1">
+                                    ON
+                                  </span>
+                                )}
+                                <p className="text-[11px] text-[#5F6B7A] leading-normal font-medium mt-1">Reached 80% task efficiency.</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Premium Duewell Assessment Banner (Full Width) */}
+              <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-[#EFF6FF] via-[#EEF2FF] to-[#F5F3FF] border border-[#E2E8F0] p-7 shadow-xs group hover:shadow-sm transition-all duration-300">
+                {/* Floating sparkles */}
+                <div className="absolute top-2 right-12 w-2 h-2 bg-blue-300 rounded-full animate-ping opacity-40" />
+                <div className="absolute bottom-4 left-1/3 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-bounce opacity-40" />
+                
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-white text-[#3B82F6] rounded-2xl shrink-0 shadow-xs relative">
+                      <Sparkles className="w-6 h-6 animate-pulse" />
+                      <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span>
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-extrabold text-[#3B82F6] uppercase tracking-wider font-mono">Cognitive Strategist</span>
+                      <h4 className="font-outfit text-lg font-extrabold text-[#1E1B4B]">AI Coach Assessment</h4>
+                      <p className="text-[13px] text-[#4F46E5] font-semibold leading-relaxed max-w-2xl mt-1">
+                        "Fantastic work, <span className="font-bold text-[#1F2937]">{profileName || "Saver"}</span>! Complete your pending deadlines in the Productivity Hub to increase your tactical survival score."
+                      </p>
+                      
+                      <div className="text-[12px] text-[#5F6B7A] font-medium leading-normal p-2.5 bg-white/70 rounded-xl border border-indigo-100/40 inline-block mt-3">
+                        {(() => {
+                          const pendingTasksCount = tasks.filter(t => t.status !== "completed").length;
+                          if (pendingTasksCount > 0) {
+                            return `💡 Complete ${pendingTasksCount} more task${pendingTasksCount > 1 ? "s" : ""} today to increase your Momentum by ${(pendingTasksCount * 8).toFixed(0)}%!`;
+                          } else {
+                            return `🏆 Excellent job! All current tasks are fully resolved. You have hit Peak Momentum!`;
+                          }
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveView("productivity")}
+                    className="w-full md:w-auto px-6 py-3 bg-[#3B82F6] hover:bg-[#2563EB] text-white text-[12px] font-extrabold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs hover:translate-y-[-2px] shrink-0"
+                  >
+                    <span>Continue Productivity</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
             </div>

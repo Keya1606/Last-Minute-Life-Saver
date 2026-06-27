@@ -1,4 +1,4 @@
-// Last-Minute Life Saver Shared Types
+// Duewell Shared Types
 
 export type PriorityType = "urgent" | "high" | "medium" | "low";
 export type DifficultyType = "easy" | "medium" | "hard";
@@ -28,6 +28,10 @@ export interface Task {
   suggestedStartTime?: string;
   suggestedEndTime?: string;
   riskLevel?: "low" | "medium" | "high";
+  
+  // High-Intelligence AI additions
+  subtasks?: Array<{ id: string; title: string; completed: boolean }>;
+  academicRoadmap?: Array<{ phase: string; details: string; hoursNeeded: number }>;
 }
 
 export interface Habit {

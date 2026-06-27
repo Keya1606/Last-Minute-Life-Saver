@@ -63,11 +63,8 @@ export default function Sidebar({
             
             {/* Brand Text */}
             <div className={`flex flex-col leading-tight select-none transition-all duration-500 ease-in-out origin-left ${isSidebarCollapsed ? "opacity-0 max-w-0 translate-x-2 pointer-events-none" : "opacity-100 max-w-[120px] translate-x-0"}`}>
-              <span className="font-outfit font-extrabold text-[14px] tracking-tight text-[#1F2937] whitespace-nowrap">
-                Last-Minute
-              </span>
-              <span className="font-outfit font-extrabold text-[14px] tracking-tight text-[#5B6CFF] whitespace-nowrap">
-                Life Saver
+              <span className="font-outfit font-extrabold text-[16px] tracking-tight text-[#1F2937] whitespace-nowrap">
+                Duewell
               </span>
             </div>
           </div>

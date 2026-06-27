@@ -218,14 +218,13 @@ export default function Header({
 
         {/* Profile Circle shortcut */}
         <div className="flex items-center gap-1.5 pl-2 border-l border-[#E5EAF5] h-6">
-          <button
-            onClick={() => onSelectView("profile")}
-            className="w-9 h-9 rounded-full bg-[#5B6CFF] hover:bg-[#4758E8] text-white flex items-center justify-center font-outfit font-bold text-sm shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95 focus:outline-none"
+          <div
+            className="w-9 h-9 rounded-full bg-[#5B6CFF] text-white flex items-center justify-center font-outfit font-bold text-sm shadow-sm select-none"
             title={fullName || userEmail}
-            id="profile-avatar-btn"
+            id="profile-avatar-display"
           >
             {getInitials()}
-          </button>
+          </div>
         </div>
       </div>
     </header>

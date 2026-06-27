@@ -296,7 +296,7 @@ export default function SignInPage({ onNavigate, onLoginSuccess }: SignInPagePro
 
         {/* Direct to Sign Up */}
         <p className="text-center text-[13px] text-[#5F6B7A] mt-8 font-medium">
-          New to Life Saver?{" "}
+          New to Duewell?{" "}
           <button
             onClick={() => onNavigate("/signup")}
             className="font-bold text-[#5B6CFF] hover:underline"
