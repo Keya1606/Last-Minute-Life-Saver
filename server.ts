@@ -547,10 +547,8 @@ Let's tackle this with a clean slate:
   let systemInstruction = "You are Calm Counselor, an incredibly warm, compassionate, and supportive productivity coach. You excel at relieving student and professional anxiety, offering gentle micro-steps, and validating the user's stress while guiding them gently to write or study. Keep responses within 3 paragraphs and highly encouraging.";
 
   if (role === "sergeant") {
-    modelName = "gemini-3.1-flash-lite";
     systemInstruction = "You are Tactical Sergeant, an intense, highly energetic, firm, but ultimately loving drill instructor of productivity. You do NOT accept any excuses for procrastination. You call out procrastination immediately, use athletic coaching style terms (like 'soldier', 'deploy', 'focus engine'), and order the user to do a 10-minute sprint of work right now with absolutely zero phone distractions. Keep responses short, highly motivational, and punchy.";
   } else if (role === "analyst") {
-    modelName = "gemini-3.1-pro-preview";
     systemInstruction = "You are Academic Analyst, a highly cerebral, structured, intellectual study strategist. You specialize in breaking down complex syllabi, creating study timetables, designing spaced repetition and active recall schedules, and analyzing text difficulties. Your style is logical, strategic, and highly detailed. Keep responses structured and analytical.";
   }
 
@@ -575,8 +573,9 @@ Let's tackle this with a clean slate:
     const response = await chat.sendMessage({ message: message });
     const reply = response.text || "I am here to support you. Let's take it one step at a time.";
     res.json({ reply });
-  } catch (err) {
-    console.error("AI Coach Chat error:", err);
+  } catch (err: any) {
+    isGeminiAPIBroken = true;
+    console.log("AI Coach Chat: Gemini API unavailable, utilizing local fallback engine.");
     const fallbackAdvice = generateFallbackChatResponse(message);
     res.json({ reply: fallbackAdvice });
   }
@@ -609,7 +608,7 @@ app.post("/api/ai-explode-task", async (req, res) => {
     Task Description: "${description || "None"}"`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -638,8 +637,9 @@ app.post("/api/ai-explode-task", async (req, res) => {
     if (!text) throw new Error("Empty response");
     const data = JSON.parse(text);
     res.json(data);
-  } catch (err) {
-    console.error("AI Explode Task error:", err);
+  } catch (err: any) {
+    isGeminiAPIBroken = true;
+    console.log("AI Explode Task: Gemini API unavailable, utilizing local fallback engine.");
     res.json({ subtasks: getFallbackSubtasks() });
   }
 });
@@ -685,8 +685,9 @@ app.post("/api/ai-refine-email", async (req, res) => {
     if (!text) throw new Error("Empty response");
     const data = JSON.parse(text);
     res.json(data);
-  } catch (err) {
-    console.error("AI Refine Email error:", err);
+  } catch (err: any) {
+    isGeminiAPIBroken = true;
+    console.log("AI Refine Email: Gemini API unavailable, utilizing local fallback engine.");
     res.json({ refinedDraft: draft });
   }
 });
@@ -738,7 +739,7 @@ app.post("/api/ai-generate-strategy", async (req, res) => {
     Phase 3 (Synthesis/Test run): Focuses on mock exams, final drafts, or continuous focus sprints.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-pro-preview",
+      model: "gemini-3.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -768,8 +769,9 @@ app.post("/api/ai-generate-strategy", async (req, res) => {
     if (!text) throw new Error("Empty response");
     const data = JSON.parse(text);
     res.json(data);
-  } catch (err) {
-    console.error("AI Generate Strategy error:", err);
+  } catch (err: any) {
+    isGeminiAPIBroken = true;
+    console.log("AI Generate Strategy: Gemini API unavailable, utilizing local fallback engine.");
     res.json({ phases: getFallbackPhases() });
   }
 });

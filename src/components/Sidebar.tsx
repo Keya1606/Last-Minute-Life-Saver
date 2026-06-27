@@ -54,7 +54,7 @@ export default function Sidebar({
             {/* Logo Box */}
             <button 
               onClick={() => isSidebarCollapsed && setIsSidebarCollapsed(false)}
-              className="w-10 h-10 rounded-xl bg-[#5B6CFF] flex items-center justify-center text-white shrink-0 shadow-lg shadow-[#5B6CFF]/30 hover:scale-[1.05] transition-all duration-300 cursor-pointer"
+              className="w-10 h-10 rounded-xl bg-[#5B6CFF] flex items-center justify-center text-white shrink-0 cursor-pointer"
               title={isSidebarCollapsed ? "Expand Sidebar" : undefined}
               disabled={!isSidebarCollapsed}
             >

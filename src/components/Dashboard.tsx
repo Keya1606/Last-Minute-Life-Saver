@@ -218,6 +218,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
   const [aiPlanning, setAiPlanning] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [actionSuccessAction, setActionSuccessAction] = useState<{ label: string; onClick: () => void } | null>(null);
   
   // Non-happy-path error tracking states
   const [initialLoadError, setInitialLoadError] = useState(false);
@@ -682,14 +683,44 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
       setLoading(true);
       setInitialLoadError(false);
       setActionError("");
-      const fetchedTasks = await dataService.getTasks(userId);
+      const rawTasks = await dataService.getTasks(userId);
+      const fetchedTasks = rawTasks.map(t => ({
+        ...t,
+        subtasks: t.subtasks ? t.subtasks.map((st: any) => {
+          let titleStr = st.title;
+          if (st.title && typeof st.title === "object") {
+            titleStr = typeof st.title.title === "string"
+              ? `${st.title.title}${st.title.estimated_minutes ? ` (${st.title.estimated_minutes}m)` : ""}`
+              : JSON.stringify(st.title);
+          }
+          return {
+            ...st,
+            title: typeof titleStr === "string" ? titleStr : String(titleStr || "")
+          };
+        }) : undefined
+      }));
       const fetchedHabits = await dataService.getHabits(userId);
       const savedPlan = await dataService.getDailyPlan(userId);
       
       // Restore AI enriched tasks if cached
       const cachedEnriched = localStorage.getItem(`ai_enriched_tasks_${userId}`);
       if (cachedEnriched) {
-        const parsed = JSON.parse(cachedEnriched) as Task[];
+        const parsedRaw = JSON.parse(cachedEnriched) as Task[];
+        const parsed = parsedRaw.map(t => ({
+          ...t,
+          subtasks: t.subtasks ? t.subtasks.map((st: any) => {
+            let titleStr = st.title;
+            if (st.title && typeof st.title === "object") {
+              titleStr = typeof st.title.title === "string"
+                ? `${st.title.title}${st.title.estimated_minutes ? ` (${st.title.estimated_minutes}m)` : ""}`
+                : JSON.stringify(st.title);
+            }
+            return {
+              ...st,
+              title: typeof titleStr === "string" ? titleStr : String(titleStr || "")
+            };
+          }) : undefined
+        }));
         // Merge dynamic AI properties into fetched tasks
         const merged = fetchedTasks.map(t => {
           const aiData = parsed.find(pt => pt.id === t.id);
@@ -704,7 +735,8 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
               priorityRank: aiData.priorityRank,
               suggestedStartTime: aiData.suggestedStartTime,
               suggestedEndTime: aiData.suggestedEndTime,
-              riskLevel: aiData.riskLevel
+              riskLevel: aiData.riskLevel,
+              subtasks: t.subtasks || aiData.subtasks // Keep latest subtasks
             };
           }
           return t;
@@ -751,13 +783,26 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
   // Clean success/error notifications after some time
   useEffect(() => {
     if (actionSuccess || actionError) {
+      const timeoutDuration = actionSuccess && actionSuccessAction ? 12000 : 5000;
       const t = setTimeout(() => {
         setActionSuccess("");
         setActionError("");
-      }, 5000);
+      }, timeoutDuration);
       return () => clearTimeout(t);
     }
-  }, [actionSuccess, actionError]);
+  }, [actionSuccess, actionError, actionSuccessAction]);
+
+  // Sync actionSuccessAction state with actionSuccess
+  useEffect(() => {
+    if (!actionSuccess) {
+      setActionSuccessAction(null);
+    } else if (
+      actionSuccess !== "AI Prioritization complete! Look at your curated list." &&
+      actionSuccess !== "Your personalized daily plan, recommendations, and risk tips are ready!"
+    ) {
+      setActionSuccessAction(null);
+    }
+  }, [actionSuccess]);
 
   // Task Actions
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -883,11 +928,14 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
       });
       const data = await res.json();
       if (data.subtasks && Array.isArray(data.subtasks)) {
-        const formattedSubtasks = data.subtasks.map((st: string, i: number) => ({
-          id: i.toString(),
-          title: st,
-          completed: false
-        }));
+        const formattedSubtasks = data.subtasks.map((st: any, i: number) => {
+          const titleStr = typeof st === "string" ? st : `${st?.title || ""}${st?.estimated_minutes ? ` (${st.estimated_minutes}m)` : ""}`;
+          return {
+            id: i.toString(),
+            title: titleStr,
+            completed: false
+          };
+        });
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, subtasks: formattedSubtasks } : t));
         try {
           await dataService.updateTask(userId, taskId, { subtasks: formattedSubtasks });
@@ -1097,6 +1145,14 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
       setFilter("ai");
       setAiPrioritizeError(false);
       setActionSuccess("AI Prioritization complete! Look at your curated list.");
+      setActionSuccessAction({
+        label: "View",
+        onClick: () => {
+          setActiveView("productivity");
+          setProductivitySubTab("tasks");
+          setFilter("ai");
+        }
+      });
       if (coachingMsg) {
         setPlanMantra(coachingMsg);
       }
@@ -1182,6 +1238,13 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
 
       setAiPlanningError(false);
       setActionSuccess("Your personalized daily plan, recommendations, and risk tips are ready!");
+      setActionSuccessAction({
+        label: "View",
+        onClick: () => {
+          setActiveView("productivity");
+          setProductivitySubTab("schedule");
+        }
+      });
     } catch (err) {
       console.error(err);
       setAiPlanningError(true);
@@ -1462,10 +1525,33 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
           )}
 
           {actionSuccess && (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/35 rounded-2xl text-emerald-500 text-xs font-bold flex items-center gap-2 animate-fade-in">
-              <Check className="w-4.5 h-4.5 shrink-0" />
-              <span>{actionSuccess}</span>
-              <button onClick={() => setActionSuccess("")} className="ml-auto text-[10px] uppercase font-bold hover:opacity-85">Dismiss</button>
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/35 rounded-2xl text-emerald-500 text-xs font-bold flex items-center justify-between gap-3 animate-fade-in" id="dashboard-success-alert">
+              <div className="flex items-center gap-2">
+                <Check className="w-4.5 h-4.5 shrink-0" />
+                <span>{actionSuccess}</span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                {actionSuccessAction ? (
+                  <button 
+                    onClick={() => {
+                      actionSuccessAction.onClick();
+                      setActionSuccess("");
+                    }} 
+                    className="px-3.5 py-2 bg-[#22C55E] text-white hover:bg-[#16A34A] rounded-xl text-xs font-black transition-all shadow-sm cursor-pointer select-none flex items-center gap-1"
+                    id="success-action-btn"
+                  >
+                    {actionSuccessAction.label}
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => setActionSuccess("")} 
+                    className="text-[10px] uppercase font-black tracking-wide text-emerald-600/70 hover:text-emerald-600 transition-colors cursor-pointer"
+                    id="success-dismiss-btn"
+                  >
+                    Dismiss
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -1704,71 +1790,326 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
           )}
 
           {/* VIEW: 3. MOMENTUM ANALYTICS */}
-          {activeView === "momentum" && (
-            <div className="space-y-6 text-center">
-              
-              {/* Huge Ring Container */}
-              <div className={`custom-card p-10 border ${cardBg} flex flex-col items-center justify-center max-w-xl mx-auto space-y-5`}>
-                <h3 className="font-outfit font-semibold text-[22px] text-[#1F2937]">Your Current Victory Momentum</h3>
+          {activeView === "momentum" && (() => {
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(t => t.status === "completed").length;
+            const pendingTasksCount = totalTasks - completedTasks;
+            
+            const highStakesCount = tasks.filter(t => t.priority === "high").length;
+            const mediumStakesCount = tasks.filter(t => t.priority === "medium").length;
+            const lowStakesCount = tasks.filter(t => t.priority === "low").length;
+            
+            const hardCount = tasks.filter(t => t.difficulty === "hard").length;
+            const medDiffCount = tasks.filter(t => t.difficulty === "medium").length;
+            const easyCount = tasks.filter(t => t.difficulty === "easy").length;
+            
+            const totalHabits = habits.length;
+            const activeHabitStreaksMax = habits.length > 0 ? Math.max(...habits.map(h => h.streak), 0) : 0;
+            const totalHabitCompletions = habits.reduce((acc, h) => acc + (h.completed_dates?.length || 0), 0);
+            const pendingMinutesLeft = pendingTasks.reduce((acc, t) => acc + (t.estimated_minutes || 0), 0);
+            
+            return (
+              <div className="space-y-8 animate-fade-in text-[#1F2937]">
                 
-                <div className="relative w-48 h-48 flex items-center justify-center">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 192 192">
-                    <circle
-                      cx="96"
-                      cy="96"
-                      r="84"
-                      stroke="#E5EAF5"
-                      strokeWidth="12"
-                      fill="transparent"
-                    />
-                    <circle
-                      cx="96"
-                      cy="96"
-                      r="84"
-                      stroke="#5B6CFF"
-                      strokeWidth="12"
-                      fill="transparent"
-                      strokeDasharray={2 * Math.PI * 84}
-                      strokeDashoffset={2 * Math.PI * 84 * (1 - taskCompletionPercent / 100)}
-                      strokeLinecap="round"
-                      className="transition-all duration-700 ease-out"
-                    />
-                  </svg>
-                  <div className="absolute text-center">
-                    <span className="font-outfit text-5xl font-semibold text-[#5B6CFF] tabular-nums">
-                      {taskCompletionPercent}%
-                    </span>
-                    <p className="text-[13px] text-[#5F6B7A] font-bold uppercase tracking-wider mt-1.5">Consistency Flow</p>
+                {/* Header Banner */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E5EAF5]/80 pb-5">
+                  <div>
+                    <h2 className="font-outfit font-extrabold text-2xl tracking-tight text-[#1F2937] flex items-center gap-2">
+                      <TrendingUp className="w-6 h-6 text-[#5B6CFF]" />
+                      <span>Victory Momentum Hub</span>
+                    </h2>
+                    <p className="text-[13px] text-[#5F6B7A] font-semibold">Real-time consistency logs, burnout metrics, and cognitive capacity analysis</p>
                   </div>
                 </div>
 
-                <p className="text-[15px] text-[#5F6B7A] font-medium max-w-sm">
-                  {taskCompletionPercent === 100 
-                    ? "Perfect absolute victory! Every registered deadline has been completed. You are legendary." 
-                    : "Maintain continuous flow. Break big frozen chunks down to keep this ring burning."}
-                </p>
-              </div>
+                {/* Main Split Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  
+                  {/* Left Column: Progress Ring & Capacity Analysis */}
+                  <div className="lg:col-span-5 space-y-6">
+                    
+                    {/* Ring Card */}
+                    <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-6 shadow-sm flex flex-col items-center text-center relative overflow-hidden group hover:border-[#7C8CFF]/50 transition-all duration-300">
+                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#5B6CFF] to-indigo-500" />
+                      
+                      <h3 className="font-outfit font-extrabold text-[15px] text-[#1F2937] mb-6 flex items-center gap-1.5">
+                        <Activity className="w-4.5 h-4.5 text-[#5B6CFF]" />
+                        <span>Consistency Flow Index</span>
+                      </h3>
+                      
+                      <div className="relative w-44 h-44 flex items-center justify-center mb-6">
+                        {/* Glow effect in background */}
+                        <div className="absolute inset-4 rounded-full bg-[#5B6CFF]/5 blur-xl group-hover:bg-[#5B6CFF]/10 transition-all duration-300" />
+                        
+                        <svg className="w-full h-full transform -rotate-90 relative z-10" viewBox="0 0 192 192">
+                          <circle
+                            cx="96"
+                            cy="96"
+                            r="82"
+                            stroke="#F1F3FA"
+                            strokeWidth="11"
+                            fill="transparent"
+                          />
+                          <circle
+                            cx="96"
+                            cy="96"
+                            r="82"
+                            stroke="url(#momentumGradient)"
+                            strokeWidth="12"
+                            fill="transparent"
+                            strokeDasharray={2 * Math.PI * 82}
+                            strokeDashoffset={2 * Math.PI * 82 * (1 - taskCompletionPercent / 100)}
+                            strokeLinecap="round"
+                            className="transition-all duration-1000 ease-out"
+                          />
+                          <defs>
+                            <linearGradient id="momentumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                              <stop offset="0%" stopColor="#5B6CFF" />
+                              <stop offset="100%" stopColor="#4F46E5" />
+                            </linearGradient>
+                          </defs>
+                        </svg>
+                        
+                        <div className="absolute text-center z-20">
+                          <span className="font-outfit text-4xl font-black text-[#5B6CFF] tracking-tight tabular-nums">
+                            {taskCompletionPercent}%
+                          </span>
+                          <p className="text-[10px] text-[#5F6B7A] font-black uppercase tracking-widest mt-1">Flow Ratio</p>
+                        </div>
+                      </div>
 
-              {/* Stress mitigation advice block */}
-              {recommendations.length > 0 && (
-                <div className={`custom-card p-6 border ${cardBg} text-left max-w-xl mx-auto space-y-4`}>
-                  <h4 className="font-outfit font-semibold text-[18px] text-[#1F2937] flex items-center gap-1.5">
-                    <Award className="w-5 h-5 text-[#5B6CFF]" />
-                    <span>Gemini Anti-Burnout Suggestions</span>
-                  </h4>
-                  <ul className="space-y-2.5">
-                    {recommendations.map((rec, i) => (
-                      <li key={i} className="text-[15px] text-[#5F6B7A] font-medium flex items-start gap-2.5">
-                        <span className="text-[#5B6CFF] text-base select-none">•</span>
-                        <span>{rec}</span>
-                      </li>
-                    ))}
-                  </ul>
+                      <div className="space-y-3.5 max-w-xs">
+                        <p className="text-xs font-bold text-[#5F6B7A] leading-relaxed">
+                          {taskCompletionPercent === 100 
+                            ? "Perfect absolute victory! Every registered deadline has been completed. You are legendary." 
+                            : "Maintain continuous flow. Break big frozen chunks down to keep this ring burning."}
+                        </p>
+                        
+                        {/* Progress mini indicator */}
+                        <div className="flex items-center justify-center gap-1.5 text-[11px] font-black text-[#5B6CFF] bg-[#5B6CFF]/5 border border-[#5B6CFF]/10 py-1.5 px-3.5 rounded-xl">
+                          <Flame className="w-3.5 h-3.5 text-orange-500 fill-current" />
+                          <span>{completedTasks} / {totalTasks} Deadlines Cleared</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Workload Profile Breakdown */}
+                    <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-6 shadow-sm space-y-4 hover:border-[#7C8CFF]/30 transition-all duration-300">
+                      <h4 className="font-outfit font-extrabold text-[14px] text-[#1F2937] flex items-center gap-1.5">
+                        <Sliders className="w-4 h-4 text-[#5B6CFF]" />
+                        <span>Workload Stress Profile</span>
+                      </h4>
+                      
+                      <div className="space-y-4">
+                        {/* Stakes Breakdown */}
+                        <div>
+                          <div className="flex justify-between text-[11px] font-bold text-[#5F6B7A] mb-1.5">
+                            <span>Stakes Risk Distribution</span>
+                            <span className="text-red-500 font-extrabold">{highStakesCount} Critical</span>
+                          </div>
+                          <div className="h-2.5 w-full bg-[#F1F3FA] rounded-full overflow-hidden flex">
+                            <div 
+                              style={{ width: `${totalTasks > 0 ? (highStakesCount / totalTasks) * 100 : 0}%` }} 
+                              className="bg-red-500 transition-all duration-500" 
+                              title="High Stakes"
+                            />
+                            <div 
+                              style={{ width: `${totalTasks > 0 ? (mediumStakesCount / totalTasks) * 100 : 0}%` }} 
+                              className="bg-amber-500 transition-all duration-500" 
+                              title="Medium Stakes"
+                            />
+                            <div 
+                              style={{ width: `${totalTasks > 0 ? (lowStakesCount / totalTasks) * 100 : 0}%` }} 
+                              className="bg-[#5B6CFF] transition-all duration-500" 
+                              title="Low Stakes"
+                            />
+                          </div>
+                          <div className="flex gap-3 mt-1.5 text-[10px] font-black text-[#5F6B7A]">
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full" /> {highStakesCount} High</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full" /> {mediumStakesCount} Med</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-[#5B6CFF] rounded-full" /> {lowStakesCount} Low</span>
+                          </div>
+                        </div>
+
+                        {/* Difficulty Breakdown */}
+                        <div>
+                          <div className="flex justify-between text-[11px] font-bold text-[#5F6B7A] mb-1.5">
+                            <span>Inherent Difficulty Curve</span>
+                            <span className="text-indigo-600 font-extrabold">{hardCount} Hard Tasks</span>
+                          </div>
+                          <div className="h-2.5 w-full bg-[#F1F3FA] rounded-full overflow-hidden flex">
+                            <div 
+                              style={{ width: `${totalTasks > 0 ? (hardCount / totalTasks) * 100 : 0}%` }} 
+                              className="bg-purple-600 transition-all duration-500" 
+                              title="Hard"
+                            />
+                            <div 
+                              style={{ width: `${totalTasks > 0 ? (medDiffCount / totalTasks) * 100 : 0}%` }} 
+                              className="bg-blue-500 transition-all duration-500" 
+                              title="Medium"
+                            />
+                            <div 
+                              style={{ width: `${totalTasks > 0 ? (easyCount / totalTasks) * 100 : 0}%` }} 
+                              className="bg-emerald-500 transition-all duration-500" 
+                              title="Easy"
+                            />
+                          </div>
+                          <div className="flex gap-3 mt-1.5 text-[10px] font-black text-[#5F6B7A]">
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-purple-600 rounded-full" /> {hardCount} Hard</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-blue-500 rounded-full" /> {medDiffCount} Medium</span>
+                            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> {easyCount} Easy</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Bento Stats Grid & Burnout Advisory */}
+                  <div className="lg:col-span-7 space-y-6">
+                    
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      
+                      {/* Urgent Target Focus */}
+                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-3 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                            <span>Urgent Target Focus</span>
+                          </p>
+                          {mostUrgentTask ? (
+                            <div className="space-y-1 pt-1">
+                              <h4 className="font-outfit font-extrabold text-[13.5px] text-[#1F2937] leading-snug line-clamp-2">
+                                {mostUrgentTask.title}
+                              </h4>
+                              <p className="text-[11px] text-[#5F6B7A] font-semibold flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-slate-400" />
+                                <span>Due: {new Date(mostUrgentTask.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-[#5F6B7A] font-semibold pt-1">No urgent deadlines pending. All caught up!</p>
+                          )}
+                        </div>
+                        {mostUrgentTask && (
+                          <div className="flex gap-1.5 pt-1">
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-100 uppercase tracking-wide">
+                              {mostUrgentTask.priority} Stakes
+                            </span>
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-[#5B6CFF]/5 text-[#5B6CFF] border border-[#5B6CFF]/10 uppercase tracking-wide">
+                              {mostUrgentTask.category}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Habits Consistency */}
+                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-3 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-[#5B6CFF] uppercase tracking-widest flex items-center gap-1">
+                            <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Habit Streaks</span>
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 pt-2">
+                            <div>
+                              <span className="text-xs font-bold text-[#5F6B7A] block">Max Streak</span>
+                              <span className="text-lg font-black text-[#1F2937] font-mono flex items-center gap-1">
+                                <Flame className="w-4.5 h-4.5 text-orange-500 fill-current" />
+                                {activeHabitStreaksMax}d
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-[#5F6B7A] block">Total Logs</span>
+                              <span className="text-lg font-black text-[#1F2937] font-mono">
+                                {totalHabitCompletions}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-semibold text-[#5F6B7A]">
+                          Streaks from {totalHabits} configured habits
+                        </p>
+                      </div>
+
+                      {/* Estimated Work Remaining */}
+                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-2 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-[#5B6CFF] uppercase tracking-widest flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-[#5B6CFF]" />
+                            <span>Pending Focus Block</span>
+                          </p>
+                          <div className="pt-1.5">
+                            <span className="text-2xl font-black text-[#1F2937] font-mono">
+                              {pendingMinutesLeft}
+                            </span>
+                            <span className="text-xs text-[#5F6B7A] font-bold ml-1">minutes</span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-semibold text-[#5F6B7A]">
+                          Required focus for {pendingTasksCount} remaining targets
+                        </p>
+                      </div>
+
+                      {/* Overall Efficiency Ratio */}
+                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-2 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                        <div>
+                          <p className="text-[10px] font-black text-[#5B6CFF] uppercase tracking-widest flex items-center gap-1">
+                            <Target className="w-3.5 h-3.5 text-[#5B6CFF]" />
+                            <span>Sustained Routine Index</span>
+                          </p>
+                          <div className="pt-1.5">
+                            <span className="text-2xl font-black text-[#1F2937] font-mono">
+                              {totalHabits > 0 ? Math.round((habits.filter(h => h.streak > 0).length / totalHabits) * 100) : 0}%
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-semibold text-[#5F6B7A]">
+                          Ratio of actively sustained habits in routine
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Stress Mitigation Advice Panel */}
+                    <div className="bg-gradient-to-br from-indigo-50/20 to-sky-50/10 border border-[#E5EAF5]/90 rounded-3xl p-6.5 shadow-sm space-y-4 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-3 opacity-[0.03] select-none">
+                        <Sparkles className="w-24 h-24 text-indigo-500" />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-[#5B6CFF]/10 text-[#5B6CFF] rounded-lg">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-outfit font-extrabold text-[15px] text-[#1F2937]">Gemini Anti-Burnout Suggestions</h4>
+                          <p className="text-[11px] font-semibold text-[#5F6B7A]">Personalized stress-mitigation advice compiled from your targets</p>
+                        </div>
+                      </div>
+
+                      {recommendations.length > 0 ? (
+                        <ul className="space-y-3 relative z-10">
+                          {recommendations.map((rec, i) => (
+                            <li 
+                              key={i} 
+                              className="text-xs font-semibold text-[#1F2937] flex items-start gap-3 bg-white border border-slate-100 p-3.5 rounded-2xl hover:translate-x-1 transition-all duration-200 hover:shadow-xs"
+                            >
+                              <span className="text-[#5B6CFF] text-base select-none mt-0.5">•</span>
+                              <span className="leading-relaxed">{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="bg-white/60 border border-slate-100 p-5 rounded-2xl text-center">
+                          <Sparkles className="w-8 h-8 text-[#5B6CFF]/30 mx-auto mb-2" />
+                          <p className="text-xs font-bold text-[#1F2937]">No burnout risks detected!</p>
+                          <p className="text-[11px] font-semibold text-[#5F6B7A] mt-1">Your workload parameters look perfectly safe. Maintain standard micro-breaks to preserve cognitive energy.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              )}
-
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {/* VIEW: 4. RESCUE STATION */}
           {activeView === "rescue" && (

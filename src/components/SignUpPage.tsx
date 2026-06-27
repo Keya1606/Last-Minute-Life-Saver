@@ -148,21 +148,22 @@ export default function SignUpPage({ onNavigate, onLoginSuccess }: SignUpPagePro
   return (
     <div className="min-h-screen bg-[#F7F8FC] text-[#1F2937] flex flex-col justify-center items-center px-4 py-12 font-sans">
       
-      {/* Return Home Button */}
-      <button 
-        onClick={() => onNavigate("/")}
-        className="mb-8 flex items-center gap-1.5 text-[#5F6B7A] hover:text-[#5B6CFF] text-[15px] font-semibold transition-colors cursor-pointer"
-        id="signup-back-home"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to Landing Page
-      </button>
+      <div className="w-full max-w-[400px] flex flex-col items-start">
+        {/* Return Home Button */}
+        <button 
+          onClick={() => onNavigate("/")}
+          className="mb-6 flex items-center gap-1.5 text-[#5F6B7A] hover:text-[#5B6CFF] text-[15px] font-semibold transition-colors cursor-pointer self-start"
+          id="signup-back-home"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Landing Page
+        </button>
 
-      {/* Main card */}
-      <div className="w-full max-w-[400px] bg-white border border-[#E5EAF5] rounded-[24px] shadow-sm p-8" id="signup-card">
+        {/* Main card */}
+        <div className="w-full bg-white border border-[#E5EAF5] rounded-[24px] shadow-sm p-8" id="signup-card">
         
         {/* Title */}
         <div className="text-center mb-8">
-          <div className="w-10 h-10 rounded-full bg-[#5B6CFF] flex items-center justify-center text-white mx-auto mb-3 shadow-md shadow-[#5B6CFF]/20">
+          <div className="w-10 h-10 rounded-full bg-[#5B6CFF] flex items-center justify-center text-white mx-auto mb-3">
             <Zap className="w-5 h-5 fill-white stroke-none" />
           </div>
           <h2 className="font-outfit text-2xl font-semibold tracking-tight text-[#1F2937]">Create your account</h2>
@@ -338,5 +339,6 @@ export default function SignUpPage({ onNavigate, onLoginSuccess }: SignUpPagePro
         </p>
       </div>
     </div>
-  );
+  </div>
+);
 }
