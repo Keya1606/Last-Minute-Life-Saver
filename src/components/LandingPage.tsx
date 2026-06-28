@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion } from "motion/react";
 import { RouteType } from "../types";
 import { 
   Zap, 
@@ -78,25 +79,54 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
   ];
 
   return (
-    <div className="min-h-screen bg-[#FAF9FD] text-[#1F2937] flex flex-col font-sans relative overflow-x-hidden selection:bg-[#5B6CFF]/10 selection:text-[#5B6CFF]">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF9FD] via-[#F3F0FA] to-[#FAF9FD] text-[#1F2937] flex flex-col font-sans relative overflow-x-hidden selection:bg-[#5B6CFF]/10 selection:text-[#5B6CFF]">
       
-      {/* 3D Soft Lighting Canvas Overlays */}
+      {/* 3D Soft Lighting Canvas Overlays with rich, multi-colored pastel gradient blobs */}
       <div className="absolute inset-0 pointer-events-none -z-10 select-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-gradient-to-tr from-[#5B6CFF]/5 to-[#818CF8]/3 rounded-full blur-[140px]" />
-        <div className="absolute top-[40%] right-10 w-[500px] h-[500px] bg-gradient-to-br from-[#EEF2FF] to-[#E0E7FF]/20 rounded-full blur-[120px]" />
-        
-        {/* Subtle dot-pattern element configured with extremely high transparency to prevent clutter */}
+        {/* Soft, beautiful radial gradient spots */}
         <div 
-          className="absolute inset-0 opacity-[0.015]" 
+          className="absolute top-[-5%] left-[5%] w-[800px] h-[800px] rounded-full opacity-[0.75]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(91, 108, 255, 0.18) 0%, rgba(129, 140, 248, 0.1) 40%, rgba(192, 132, 252, 0.05) 70%, transparent 100%)"
+          }}
+        />
+        <div 
+          className="absolute top-[25%] right-[-10%] w-[700px] h-[700px] rounded-full opacity-[0.7]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(254, 205, 211, 0.28) 0%, rgba(224, 231, 255, 0.15) 45%, rgba(91, 108, 255, 0.04) 75%, transparent 100%)"
+          }}
+        />
+        <div 
+          className="absolute top-[50%] left-[-15%] w-[750px] h-[750px] rounded-full opacity-[0.65]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(224, 242, 254, 0.25) 0%, rgba(243, 232, 255, 0.12) 50%, transparent 100%)"
+          }}
+        />
+        <div 
+          className="absolute bottom-[10%] right-[10%] w-[850px] h-[850px] rounded-full opacity-[0.7]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(129, 140, 248, 0.18) 0%, rgba(253, 242, 248, 0.12) 45%, rgba(250, 245, 255, 0.06) 75%, transparent 100%)"
+          }}
+        />
+        <div 
+          className="absolute bottom-[-10%] left-[20%] w-[700px] h-[700px] rounded-full opacity-[0.6]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(192, 132, 252, 0.16) 0%, rgba(91, 108, 255, 0.06) 50%, transparent 100%)"
+          }}
+        />
+        
+        {/* Soft, beautiful tactical grid-dot pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.035]" 
           style={{
             backgroundImage: `radial-gradient(#5B6CFF 1.5px, transparent 1.5px)`,
             backgroundSize: `24px 24px`,
           }}
         />
 
-        {/* Ultra-fine canvas grain */}
+        {/* Tactile paper canvas grain */}
         <div 
-          className="absolute inset-0 opacity-[0.012]" 
+          className="absolute inset-0 opacity-[0.025]" 
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
             backgroundRepeat: "repeat",
@@ -159,30 +189,50 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
       <main className="flex-grow">
         
         {/* 2. HERO SECTION */}
-        <section className="relative w-full max-w-7xl mx-auto px-6 md:px-12 pt-20 pb-16 text-center flex flex-col items-center">
+        <section className="relative w-full max-w-7xl mx-auto px-6 md:px-12 pt-12 pb-10 text-center flex flex-col items-center">
           
           {/* Soft, faint radial glow backdrop specifically behind the heading */}
           <div className="absolute top-[15%] left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[radial-gradient(circle,rgba(91,108,255,0.08)_0%,rgba(139,92,246,0.04)_40%,transparent_70%)] pointer-events-none -z-10 select-none blur-[60px]" />
 
           {/* Animated Centered Pill Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#EEF0FF] border border-[#D9DFFF] rounded-full text-[11px] font-bold text-[#5B6CFF] mb-8 uppercase tracking-wider select-none shadow-[0_4px_12px_rgba(91,108,255,0.04)] hover:bg-[#E4E8FF] transition-all duration-300">
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#EEF0FF] border border-[#D9DFFF] rounded-full text-[11px] font-bold text-[#5B6CFF] mb-4 uppercase tracking-wider select-none shadow-[0_4px_12px_rgba(91,108,255,0.04)] hover:bg-[#E4E8FF] transition-all duration-300"
+          >
             <Sparkles className="w-3.5 h-3.5 text-[#5B6CFF]" />
             MEET THE ANTIDOTE TO DEADLINE PARALYSIS
-          </div>
+          </motion.div>
           
           {/* Main Display Typography Headline with high contrast */}
-          <h1 className="font-display text-4.5xl md:text-[72px] font-black tracking-tight text-[#1F2937] mb-8 leading-[1.05] max-w-4xl">
+          <motion.h1 
+            initial={{ opacity: 0, y: 15 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+            className="font-display text-4.5xl md:text-[72px] font-black tracking-tight text-[#1F2937] mb-4 leading-[1.05] max-w-4xl"
+          >
             Stop missing deadlines.<br />
             <span className="bg-gradient-to-r from-[#5B6CFF] via-[#7C3AED] to-[#4F46E5] bg-clip-text text-transparent">Start conquering them.</span>
-          </h1>
+          </motion.h1>
           
           {/* Subtitle */}
-          <p className="text-[16px] md:text-[20px] text-[#5F6B7A] max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
+          <motion.p 
+            initial={{ opacity: 0, y: 15 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
+            className="text-[16px] md:text-[20px] text-[#5F6B7A] max-w-2xl mx-auto mb-6 leading-relaxed font-medium"
+          >
             Duewell is a beautifully engineered, momentum-driven companion that turns task backlogs into intelligent, hour-by-hour action roadmaps. 
-          </p>
+          </motion.p>
 
           {/* Call-to-actions */}
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full sm:w-auto mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.6, delay: 0.3, ease: "easeOut" }}
+            className="flex flex-col sm:flex-row justify-center items-center gap-4 w-full sm:w-auto mb-8"
+          >
             <button
               onClick={() => onNavigate(isAuthenticated ? "/app" : "/signup")}
               className="group w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#5B6CFF] to-[#4F46E5] hover:from-[#4F46E5] hover:to-[#4338CA] text-white font-extrabold text-[15px] rounded-xl shadow-[0_10px_30px_rgba(91,108,255,0.2)] hover:shadow-[0_15px_40px_rgba(91,108,255,0.35)] hover:-translate-y-[3px] transition-all duration-250 flex items-center justify-center gap-2 cursor-pointer"
@@ -201,13 +251,13 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
             >
               See how it works
             </button>
-          </div>
+          </motion.div>
         </section>
 
         {/* 4. HOW IT WORKS SECTION */}
-        <section id="how-it-works" className="max-w-7xl mx-auto px-6 md:px-12 py-24 relative">
+        <section id="how-it-works" className="max-w-7xl mx-auto px-6 md:px-12 py-12 relative">
           
-          <div className="text-center mb-20 space-y-4">
+          <div className="text-center mb-10 space-y-2">
             <span className="text-[11px] font-black tracking-widest text-[#5B6CFF] bg-[#EEF0FF] px-3 py-1 rounded-full uppercase">Simple 3-Step Flow</span>
             <h2 className="font-display text-4xl md:text-[48px] font-black tracking-tight text-[#1F2937]">
               Engineered to bypass anxiety
@@ -269,10 +319,10 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
         </section>
 
         {/* 5. FEATURES BENTO GRID */}
-        <section className="bg-transparent py-24 relative">
+        <section className="bg-transparent py-12 relative">
           <div className="max-w-7xl mx-auto px-6 md:px-12">
             
-            <div className="max-w-3xl mx-auto text-center mb-20 space-y-4">
+            <div className="max-w-3xl mx-auto text-center mb-10 space-y-2">
               <span className="text-[11px] font-black tracking-widest text-[#8B5CF6] bg-[#F5F3FF] px-3 py-1 rounded-full uppercase">Feature Deep Dive</span>
               <h2 className="font-display text-4xl md:text-[48px] font-black tracking-tight text-[#1F2937]">
                 Crafted for healthy velocity
@@ -413,7 +463,7 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
         </section>
 
         {/* 6. TESTIMONIALS SECTION */}
-        <section className="max-w-7xl mx-auto px-6 md:px-12 py-20">
+        <section className="max-w-7xl mx-auto px-6 md:px-12 py-10">
           <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-[#1E1B4B] text-white rounded-[40px] p-8 md:p-16 relative overflow-hidden shadow-2xl border border-white/5">
             {/* Background glowing ambient lights */}
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#5B6CFF]/15 rounded-full blur-[120px] pointer-events-none" />
@@ -421,7 +471,7 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
               
-              <div className="lg:col-span-5 space-y-5">
+              <div className="lg:col-span-5 space-y-2">
                 <span className="text-[11px] font-black text-[#818CF8] uppercase tracking-widest bg-white/5 border border-white/10 px-3.5 py-1.5 rounded-full backdrop-blur-md">VIBE2SHIP PICK</span>
                 <h3 className="font-display text-4xl md:text-5xl font-black leading-[1.1] tracking-tight">
                   Why users prefer Duewell
@@ -484,8 +534,8 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
         </section>
 
         {/* 7. FAQ ACCORDION SECTION */}
-        <section className="max-w-4xl mx-auto px-6 py-24">
-          <div className="text-center mb-16 space-y-3">
+        <section className="max-w-4xl mx-auto px-6 py-12">
+          <div className="text-center mb-8 space-y-1.5">
             <span className="text-[11px] font-black tracking-widest text-[#5B6CFF] bg-[#EEF0FF] px-3 py-1 rounded-full uppercase">Common Questions</span>
             <h3 className="font-display text-3xl md:text-[40px] font-black text-[#1F2937]">Frequently Asked Questions</h3>
             <p className="text-[#5F6B7A] text-[15px] font-semibold">Everything you need to know about starting your focus journey.</p>
@@ -523,16 +573,16 @@ export default function LandingPage({ onNavigate, isAuthenticated, onLogout, use
         </section>
 
         {/* 8. FINAL BOTTOM CALL-TO-ACTION */}
-        <section className="relative text-center max-w-4xl mx-auto px-6 pb-28 pt-10">
-          <div className="bg-gradient-to-tr from-[#EEF2FF] via-[#FAF9FD] to-[#E0E7FF]/30 rounded-[40px] p-10 md:p-16 border border-[#E2E8F0] relative overflow-hidden shadow-lg group/cta">
+        <section className="relative text-center max-w-4xl mx-auto px-6 pb-14 pt-4">
+          <div className="bg-gradient-to-tr from-[#EEF2FF] via-[#FAF9FD] to-[#E0E7FF]/30 rounded-[40px] p-10 md:p-12 border border-[#E2E8F0] relative overflow-hidden shadow-lg group/cta">
             {/* Glowing background circles */}
             <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-200/30 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-[#5B6CFF]/10 rounded-full blur-3xl pointer-events-none" />
             
-            <h2 className="font-display text-3xl md:text-5xl font-black text-[#1F2937] mb-5 leading-tight">
+            <h2 className="font-display text-3xl md:text-5xl font-black text-[#1F2937] mb-3 leading-tight">
               Ready to tame your deadline stress?
             </h2>
-            <p className="text-[#5F6B7A] text-[15px] md:text-[17px] max-w-xl mx-auto mb-10 leading-relaxed font-semibold">
+            <p className="text-[#5F6B7A] text-[15px] md:text-[17px] max-w-xl mx-auto mb-6 leading-relaxed font-semibold">
               Join students and creators using Duewell to break planning paralysis and rebuild healthy daily momentum.
             </p>
             <button

@@ -96,7 +96,7 @@ export default function App() {
     if (isAuthenticated) {
       // Redirect logged-in users away from logged-out views
       if (route === "/signin" || route === "/signup") {
-        navigate("/");
+        navigate("/app");
       }
     } else {
       // Redirect logged-out users away from logged-in views

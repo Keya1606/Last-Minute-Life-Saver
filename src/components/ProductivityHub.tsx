@@ -172,10 +172,10 @@ export default function ProductivityHub({
     return habit.completed_dates.includes(todayStr);
   };
 
-  const cardBg = "bg-white border-[#E5EAF5] text-[#1F2937]";
+  const cardBg = "bg-white/80 backdrop-blur-md border-[#ECECF5] text-[#1F2937] rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.02)]";
   const textColor = "text-[#1F2937]";
   const secondaryText = "text-[#5F6B7A]";
-  const innerCard = "bg-[#F7F8FC] border-[#E5EAF5]";
+  const innerCard = "bg-[#FAF9FD] border-[#ECECF5]";
 
   // Filter tasks based on searchQuery & selected view filter
   const getFilteredTasksList = () => {
@@ -213,7 +213,7 @@ export default function ProductivityHub({
     <div className="space-y-8 animate-fade-in">
       
       {/* Redesigned Tab Bar & Suite Title Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E5EAF5]/80 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#ECECF5] pb-5">
         <div>
           <h2 className="font-outfit font-extrabold text-2xl tracking-tight text-[#1F2937] flex items-center gap-2">
             <Zap className="w-6 h-6 text-[#5B6CFF]" />
@@ -223,7 +223,7 @@ export default function ProductivityHub({
         </div>
         
         {/* Segmented control for switching sub-tabs */}
-        <div className="bg-[#F1F3FA]/80 p-1.5 rounded-2xl flex gap-1 self-start md:self-auto border border-[#E5EAF5]">
+        <div className="bg-[#EEF0FF]/60 backdrop-blur-sm p-1.5 rounded-2xl flex gap-1 self-start md:self-auto border border-[#ECECF5]">
           {[
             { id: "tasks", label: "Tasks Matrix", icon: ListFilter },
             { id: "habits", label: "Habit Tracker", icon: Award },
@@ -234,8 +234,8 @@ export default function ProductivityHub({
               onClick={() => setProductivitySubTab(id as any)}
               className={`px-4.5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer select-none ${
                 productivitySubTab === id
-                  ? "bg-white text-[#5B6CFF] shadow-[0_4px_12px_rgba(91,108,255,0.06)] scale-[1.01]"
-                  : "text-[#5F6B7A] hover:text-[#1F2937]"
+                  ? "bg-white text-[#5B6CFF] shadow-[0_4px_12px_rgba(91,108,255,0.08)] border border-[#D9DFFF]"
+                  : "text-[#5F6B7A] hover:bg-white/40 hover:text-[#1F2937]"
               }`}
             >
               <Icon className={`w-4 h-4 transition-transform ${productivitySubTab === id ? 'scale-110 text-[#5B6CFF]' : 'text-[#5F6B7A]'}`} />
@@ -250,7 +250,7 @@ export default function ProductivityHub({
         <div className="space-y-6">
           
           {/* Header Action Row */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-[#E5EAF5]/90 p-5.5 rounded-3xl shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/80 backdrop-blur-md border border-[#ECECF5] p-5.5 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.01)]">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="p-1.5 bg-[#5B6CFF]/10 text-[#5B6CFF] rounded-lg">
@@ -265,7 +265,7 @@ export default function ProductivityHub({
 
             <div className="flex flex-wrap items-center gap-3">
               {/* Sleek pills for filter selection */}
-              <div className="bg-[#F7F8FC] border border-[#E5EAF5] rounded-xl p-1.5 flex gap-1">
+              <div className="bg-[#FAF9FD] border border-[#ECECF5] rounded-xl p-1.5 flex gap-1">
                 {[
                   { key: "all", label: "All Tasks" },
                   { key: "pending", label: "Pending" },
@@ -479,7 +479,7 @@ export default function ProductivityHub({
           {/* Render tasks list */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredTasks.length === 0 ? (
-              <div className="col-span-2 bg-white border border-[#E5EAF5] rounded-[24px] p-12 text-center shadow-xs">
+              <div className="col-span-2 bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-[24px] p-12 text-center shadow-[0_8px_30px_rgba(0,0,0,0.01)] animate-fade-in">
                 <Check className="w-12 h-12 text-[#5B6CFF]/30 mx-auto mb-3.5" />
                 <h4 className="font-outfit font-extrabold text-[17px] text-[#1F2937] mb-1">Clear Horizon</h4>
                 <p className="text-xs text-[#5F6B7A] font-semibold max-w-sm mx-auto">No pending items found matching this filter. Register a goal above to harness Gemini productivity powerups!</p>
@@ -492,7 +492,7 @@ export default function ProductivityHub({
                 // Border color indicator representing Priority Stakes
                 const leftAccentColor = 
                   task.priority === "high" 
-                    ? "border-l-red-500/90" 
+                    ? "border-l-rose-500/90" 
                     : task.priority === "medium" 
                       ? "border-l-amber-500/90" 
                       : "border-l-[#5B6CFF]/90";
@@ -500,7 +500,7 @@ export default function ProductivityHub({
                 return (
                   <div 
                     key={task.id} 
-                    className={`bg-white border-2 border-l-4 ${leftAccentColor} border-[#E5EAF5]/80 hover:border-[#7C8CFF]/60 rounded-2xl p-6 relative transition-all duration-300 hover:-translate-y-1 hover:shadow-md flex flex-col justify-between ${isDone ? 'opacity-65' : ''}`}
+                    className={`bg-white/75 backdrop-blur-md border border-l-4 ${leftAccentColor} border-[#ECECF5] hover:border-[#5B6CFF]/30 rounded-2xl p-6 relative transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(91,108,255,0.05)] flex flex-col justify-between ${isDone ? 'opacity-65' : ''}`}
                     id={`task-card-${task.id}`}
                   >
                     <div>

@@ -73,9 +73,9 @@ export default function Header({
     return "US";
   };
 
-  const headerBg = "bg-white/95 border-[#E5EAF5]";
+  const headerBg = "bg-white/80 backdrop-blur-md border-[#ECECF5]";
   const textColor = "text-[#1F2937]";
-  const inputBg = "bg-[#F7F8FC]";
+  const inputBg = "bg-[#FAF9FD]";
 
   return (
     <header className={`sticky top-0 z-30 h-16 flex items-center justify-between px-8 border-b ${headerBg} backdrop-blur-md`}>
@@ -89,7 +89,7 @@ export default function Header({
           placeholder="Search deadlines, categories..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className={`w-full h-[52px] input-with-icon pr-12 text-[15px] font-medium rounded-[14px] outline-none focus:ring-4 focus:ring-[#5B6CFF]/12 border transition-all ${inputBg} text-[#1F2937] placeholder-[#5F6B7A]/60 border-[#E5EAF5] focus:border-[#5B6CFF]`}
+          className={`w-full h-[52px] input-with-icon pr-12 text-[15px] font-medium rounded-[14px] outline-none focus:ring-4 focus:ring-[#5B6CFF]/12 border transition-all ${inputBg} text-[#1F2937] placeholder-[#5F6B7A]/60 border-[#ECECF5] focus:border-[#5B6CFF]`}
         />
         {searchQuery && (
           <button 
@@ -111,15 +111,15 @@ export default function Header({
               setShowQuickActions(!showQuickActions);
               setShowNotifications(false);
             }}
-            className="px-4 py-2.5 text-[15px] font-semibold rounded-[14px] border border-[#E5EAF5] bg-[#EEF2FF] text-[#5B6CFF] hover:bg-[#DCE5FF] hover:scale-[1.02] transition-all duration-250 flex items-center gap-2 cursor-pointer shadow-xs"
+            className="px-4 py-2.5 text-[15px] font-semibold rounded-[14px] border border-[#ECECF5] bg-[#EEF2FF] text-[#5B6CFF] hover:bg-[#DCE5FF] hover:scale-[1.02] transition-all duration-250 flex items-center gap-2 cursor-pointer shadow-xs"
           >
             <Sparkles className="w-4 h-4" />
             <span>AI Assist</span>
           </button>
 
           {showQuickActions && (
-            <div className="absolute right-0 mt-3 w-64 rounded-[24px] border border-[#E5EAF5] bg-white shadow-xl p-3 animate-fade-in">
-              <div className="px-3 py-1.5 mb-1 border-b border-[#E5EAF5]">
+            <div className="absolute right-0 mt-3 w-64 rounded-[24px] border border-[#ECECF5] bg-white shadow-xl p-3 animate-fade-in">
+              <div className="px-3 py-1.5 mb-1 border-b border-[#ECECF5]">
                 <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Rapid Interventions</span>
               </div>
               <button
@@ -165,7 +165,7 @@ export default function Header({
               setShowNotifications(!showNotifications);
               setShowQuickActions(false);
             }}
-            className="p-2.5 rounded-[14px] border border-[#E5EAF5] text-[#5F6B7A] hover:bg-[#EEF2FF] hover:text-[#5B6CFF] hover:scale-[1.02] transition-all duration-250 cursor-pointer relative"
+            className="p-2.5 rounded-[14px] border border-[#ECECF5] text-[#5F6B7A] hover:bg-[#EEF2FF] hover:text-[#5B6CFF] hover:scale-[1.02] transition-all duration-250 cursor-pointer relative"
           >
             <Bell className="w-4.5 h-4.5" />
             {notifications.length > 0 && (
@@ -177,8 +177,8 @@ export default function Header({
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-3 w-80 rounded-[24px] border border-[#E5EAF5] bg-white shadow-xl p-4 animate-fade-in">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#E5EAF5]">
+            <div className="absolute right-0 mt-3 w-80 rounded-[24px] border border-[#ECECF5] bg-white shadow-xl p-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#ECECF5]">
                 <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Active Stress Warnings</span>
                 <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-600">
                   {notifications.length} Warns
@@ -217,7 +217,7 @@ export default function Header({
         </div>
 
         {/* Profile Circle shortcut */}
-        <div className="flex items-center gap-1.5 pl-2 border-l border-[#E5EAF5] h-6">
+        <div className="flex items-center gap-1.5 pl-2 border-l border-[#ECECF5] h-6">
           <div
             className="w-9 h-9 rounded-full bg-[#5B6CFF] text-white flex items-center justify-center font-outfit font-bold text-sm shadow-sm select-none"
             title={fullName || userEmail}

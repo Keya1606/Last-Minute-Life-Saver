@@ -71,7 +71,7 @@ export default function SignUpPage({ onNavigate, onLoginSuccess }: SignUpPagePro
             localStorage.setItem("lifesaver_is_first_signup", "true");
             localStorage.setItem("lifesaver_user_full_name", fullName.trim());
             onLoginSuccess(email, "mock-user-123");
-            window.location.href = "/";
+            onNavigate("/app");
             return;
           } else {
             setErrorMessage(`Oops! ${error.message}. Please try again.`);
@@ -86,13 +86,13 @@ export default function SignUpPage({ onNavigate, onLoginSuccess }: SignUpPagePro
           if (data.session) {
             localStorage.setItem("lifesaver_is_first_signup", "true");
             onLoginSuccess(data.user.email || email, data.user.id);
-            window.location.href = "/";
+            onNavigate("/app");
           } else {
             // If Supabase has email confirmation turned on, bypass it by instantly signing them in in local-mode
             localStorage.setItem("lifesaver_force_local_mode", "true");
             localStorage.setItem("lifesaver_is_first_signup", "true");
             onLoginSuccess(data.user.email || email, data.user.id);
-            window.location.href = "/";
+            onNavigate("/app");
           }
         }
       } else {
@@ -102,7 +102,7 @@ export default function SignUpPage({ onNavigate, onLoginSuccess }: SignUpPagePro
           localStorage.setItem("lifesaver_user_full_name", fullName.trim());
           const mockId = "mock-user-123";
           onLoginSuccess(email, mockId);
-          window.location.href = "/";
+          onNavigate("/app");
           setLoading(false);
         }, 1000);
       }
@@ -135,7 +135,7 @@ export default function SignUpPage({ onNavigate, onLoginSuccess }: SignUpPagePro
           const mockEmail = "google.pioneer@example.com";
           const mockId = "mock-google-user";
           onLoginSuccess(mockEmail, mockId);
-          onNavigate("/");
+          onNavigate("/app");
           setLoading(false);
         }, 800);
       }
@@ -146,9 +146,50 @@ export default function SignUpPage({ onNavigate, onLoginSuccess }: SignUpPagePro
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F8FC] text-[#1F2937] flex flex-col justify-center items-center px-4 py-12 font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF9FD] via-[#F3F0FA] to-[#FAF9FD] text-[#1F2937] flex flex-col justify-center items-center px-4 py-12 font-sans relative overflow-hidden selection:bg-[#5B6CFF]/10 selection:text-[#5B6CFF]">
       
-      <div className="w-full max-w-[400px] flex flex-col items-start">
+      {/* 3D Soft Lighting Canvas Overlays with rich, multi-colored pastel gradient blobs */}
+      <div className="absolute inset-0 pointer-events-none -z-10 select-none overflow-hidden">
+        {/* Soft, beautiful radial gradient spots */}
+        <div 
+          className="absolute top-[-15%] left-[-15%] w-[650px] h-[650px] rounded-full opacity-[0.8]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(91, 108, 255, 0.18) 0%, rgba(129, 140, 248, 0.1) 45%, rgba(192, 132, 252, 0.05) 75%, transparent 100%)"
+          }}
+        />
+        <div 
+          className="absolute bottom-[-15%] right-[-15%] w-[650px] h-[650px] rounded-full opacity-[0.75]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(255, 158, 174, 0.22) 0%, rgba(238, 242, 255, 0.12) 45%, rgba(91, 108, 255, 0.04) 75%, transparent 100%)"
+          }}
+        />
+        <div 
+          className="absolute top-[25%] right-[-5%] w-[550px] h-[550px] rounded-full opacity-[0.7]" 
+          style={{
+            background: "radial-gradient(circle at center, rgba(128, 237, 153, 0.15) 0%, rgba(91, 108, 255, 0.05) 50%, transparent 100%)"
+          }}
+        />
+        
+        {/* Soft, beautiful tactical grid-dot pattern */}
+        <div 
+          className="absolute inset-0 opacity-[0.035]" 
+          style={{
+            backgroundImage: `radial-gradient(#5B6CFF 1.5px, transparent 1.5px)`,
+            backgroundSize: `24px 24px`,
+          }}
+        />
+
+        {/* Tactile paper canvas grain */}
+        <div 
+          className="absolute inset-0 opacity-[0.025]" 
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "repeat",
+          }}
+        />
+      </div>
+      
+      <div className="w-full max-w-[400px] flex flex-col items-start relative z-10">
         {/* Return Home Button */}
         <button 
           onClick={() => onNavigate("/")}

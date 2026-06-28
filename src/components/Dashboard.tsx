@@ -5,7 +5,7 @@ import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { 
   Zap, LogOut, Plus, Calendar, Clock, CheckCircle2, Circle, Trash2, 
   Sparkles, ListFilter, AlertTriangle, Check, RefreshCw, Eye, Award, HelpCircle,
-  AlertCircle, TrendingUp, Repeat, Mic, MicOff, Mail, Copy, X,
+  AlertCircle, TrendingUp, Repeat, Mic, MicOff, Mail, Copy, X, ArrowLeft,
   LayoutDashboard, User, Settings, Search, Bell, Moon, Sun, ChevronRight, ChevronDown, Sliders, Activity, PanelLeftClose, PanelLeft,
   Phone, Briefcase, Target, BookOpen, Volume2, VolumeX, Save, Edit2, Loader2,
   Trophy, Shield, Flame, Fingerprint, Star
@@ -251,6 +251,29 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
 
   // Premium Layout States
   const [activeView, setActiveView] = useState<"dashboard" | "productivity" | "momentum" | "rescue" | "coach" | "profile" | "settings">("dashboard");
+  const [viewHistory, setViewHistory] = useState<string[]>(["dashboard"]);
+
+  useEffect(() => {
+    setViewHistory(prev => {
+      if (prev[prev.length - 1] === activeView) {
+        return prev;
+      }
+      return [...prev, activeView];
+    });
+  }, [activeView]);
+
+  const handleGoBack = () => {
+    if (viewHistory.length > 1) {
+      const newHistory = [...viewHistory];
+      newHistory.pop(); // Remove current view
+      const prevView = newHistory[newHistory.length - 1] as any;
+      setViewHistory(newHistory);
+      setActiveView(prevView || "dashboard");
+    } else {
+      setActiveView("dashboard");
+    }
+  };
+
   const [productivitySubTab, setProductivitySubTab] = useState<"tasks" | "habits" | "schedule">("tasks");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -760,6 +783,15 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
         setPlanMantra(savedPlan.encouragement);
       }
 
+      // Check for automatic seeding of sample data
+      if (fetchedTasks.length === 0 && fetchedHabits.length === 0 && !localStorage.getItem("duewell_has_seeded_" + userId)) {
+        localStorage.setItem("duewell_has_seeded_" + userId, "true");
+        setTimeout(() => {
+          handleSeedSampleData();
+        }, 100);
+        return;
+      }
+
       // Trigger onboarding walkthrough if first login after signup
       const isFirst = localStorage.getItem("lifesaver_is_first_signup");
       if (isFirst === "true") {
@@ -770,6 +802,166 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
       console.error(err);
       setInitialLoadError(true);
       setActionError("We had a small hiccup connecting to our database server. You can retry anytime.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSeedSampleData = async () => {
+    try {
+      setLoading(true);
+      setActionError("");
+      setActionSuccess("");
+
+      // 1. Fetch and clean up existing tasks & habits to prevent duplicates
+      const currentTasks = await dataService.getTasks(userId);
+      const currentHabits = await dataService.getHabits(userId);
+
+      for (const t of currentTasks) {
+        await dataService.deleteTask(userId, t.id);
+      }
+      for (const h of currentHabits) {
+        await dataService.deleteHabit(userId, h.id);
+      }
+
+      // 2. Create high-quality Sample Tasks
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfter = new Date();
+      dayAfter.setDate(dayAfter.getDate() + 2);
+      const todayUrgent = new Date();
+      todayUrgent.setHours(todayUrgent.getHours() + 2);
+
+      const tasksToSeed = [
+        {
+          title: "Organic Chemistry: Study reaction mechanisms",
+          description: "Focus on nucleophilic substitution (SN1/SN2) and elimination (E1/E2) mechanisms for midterms.",
+          deadline: todayUrgent.toISOString(),
+          estimated_minutes: 60,
+          priority: "urgent" as PriorityType,
+          difficulty: "hard" as DifficultyType,
+          category: "Academic",
+          subtasks: [
+            { id: "st-1", title: "Review organic chemistry lecture notes on nucleophiles", completed: false },
+            { id: "st-2", title: "Draw SN1 vs SN2 reaction rate diagrams", completed: false },
+            { id: "st-3", title: "Solve chapter end practice problems 1 to 8", completed: false }
+          ]
+        },
+        {
+          title: "Draft Duewell software product specifications",
+          description: "Specify the micro-schedule generator algorithm and user preference caching details.",
+          deadline: tomorrow.toISOString(),
+          estimated_minutes: 45,
+          priority: "high" as PriorityType,
+          difficulty: "medium" as DifficultyType,
+          category: "Work",
+          subtasks: [
+            { id: "st-4", title: "Write core input/output schemas", completed: false },
+            { id: "st-5", title: "Refine offline cache fallback logic", completed: false }
+          ]
+        },
+        {
+          title: "Review biology project final submission outline",
+          description: "Submit final outline on canvas before midnight.",
+          deadline: new Date(Date.now() + 18000000).toISOString(), // 5 hours from now
+          estimated_minutes: 30,
+          priority: "urgent" as PriorityType,
+          difficulty: "easy" as DifficultyType,
+          category: "Academic",
+          subtasks: [
+            { id: "st-6", title: "Check reference list APA citations", completed: false },
+            { id: "st-7", title: "Upload document to Canvas", completed: false }
+          ]
+        },
+        {
+          title: "Renew car insurance policy",
+          description: "Check quotes from three insurers and renew policy.",
+          deadline: dayAfter.toISOString(),
+          estimated_minutes: 20,
+          priority: "medium" as PriorityType,
+          difficulty: "easy" as DifficultyType,
+          category: "Admin",
+          subtasks: []
+        }
+      ];
+
+      const seededTasks: Task[] = [];
+      for (const t of tasksToSeed) {
+        const created = await dataService.createTask(userId, {
+          title: t.title,
+          description: t.description,
+          deadline: t.deadline,
+          estimated_minutes: t.estimated_minutes,
+          priority: t.priority,
+          difficulty: t.difficulty,
+          category: t.category,
+          subtasks: t.subtasks
+        });
+        seededTasks.push(created);
+      }
+
+      // 3. Create high-quality Sample Habits
+      const habitsToSeed = [
+        "Morning deep breathing (5 min)",
+        "Stay hydrated: Drink 3L of water",
+        "Stretching break"
+      ];
+
+      for (const hName of habitsToSeed) {
+        await dataService.createHabit(userId, hName);
+      }
+
+      // 4. Set up an initial high-quality Daily Plan / Schedule
+      const seededPlanData: TimelineSlot[] = [
+        {
+          startTime: "09:00",
+          endTime: "10:00",
+          label: "Organic Chemistry: Study reaction mechanisms",
+          type: "task",
+          relatedTaskId: seededTasks[0].id,
+          advice: "Deep Work session focusing on SN1/SN2. Eliminate distractions."
+        },
+        {
+          startTime: "10:00",
+          endTime: "10:30",
+          label: "Review biology project final outline",
+          type: "task",
+          relatedTaskId: seededTasks[2].id,
+          advice: "Proofread chapter references and fix citations before uploading."
+        },
+        {
+          startTime: "10:30",
+          endTime: "10:45",
+          label: "Stretching Break & Water Hydration",
+          type: "break",
+          advice: "Take a physical break. Stand up and drink a tall glass of water."
+        },
+        {
+          startTime: "11:00",
+          endTime: "11:45",
+          label: "Draft Duewell specifications",
+          type: "task",
+          relatedTaskId: seededTasks[1].id,
+          advice: "Bite-sized planning: Write the core input/output API schemas."
+        }
+      ];
+
+      await dataService.saveDailyPlan(userId, {
+        plan_date: new Date().toISOString().split("T")[0],
+        plan_data: seededPlanData,
+        encouragement: "Fantastic daily template seeded! You have a beautifully structured flow. Banish task paralysis and start strong!"
+      });
+
+      // Clear any enrichment caches to reload cleanly
+      localStorage.removeItem(`ai_enriched_tasks_${userId}`);
+      localStorage.setItem("duewell_has_seeded_" + userId, "true");
+
+      // 5. Reload
+      await loadDashboardData();
+      setActionSuccess("Seeded 4 high-quality tasks, 3 habits, and a complete daily schedule timeline!");
+    } catch (err: any) {
+      console.error(err);
+      setActionError("Could not complete sample data seeding. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -1396,11 +1588,11 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
     }
   };
 
-  const dashboardBg = "bg-[#F7F8FC] text-[#1F2937]";
-  const cardBg = "bg-white border-[#E5EAF5] text-[#1F2937] rounded-[20px]";
+  const dashboardBg = "bg-gradient-to-b from-[#FAF9FD] via-[#F3F0FA] to-[#FAF9FD] text-[#1F2937]";
+  const cardBg = "bg-white/80 backdrop-blur-md border-[#ECECF5]/80 text-[#1F2937] rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.02)]";
   const textPrimary = "text-[#1F2937]";
   const textSecondary = "text-[#5F6B7A]";
-  const borderCol = "border-[#E5EAF5]";
+  const borderCol = "border-[#ECECF5]";
 
   return (
     <div className={`min-h-screen ${dashboardBg} flex font-sans relative transition-colors duration-200`}>
@@ -1555,53 +1747,74 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
             </div>
           )}
 
+          {/* Back Button for non-dashboard views */}
+          {activeView !== "dashboard" && (
+            <div className="flex items-center pb-2 animate-fade-in">
+              <button 
+                onClick={handleGoBack}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 ${
+                  isDarkTheme 
+                    ? 'bg-[#1E293B] border-slate-700 text-slate-200 hover:text-[#7C8CFF] hover:border-[#7C8CFF]/50' 
+                    : 'bg-white border-[#ECECF5] text-gray-700 hover:text-[#5B6CFF] hover:border-[#5B6CFF]/30'
+                } border text-xs font-bold rounded-xl shadow-xs transition-all hover:bg-[#5B6CFF]/5 active:scale-95 cursor-pointer select-none group`}
+                id="back-to-previous-btn"
+              >
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+                <span>Back</span>
+              </button>
+            </div>
+          )}
+
           {/* VIEW: 1. DASHBOARD OVERVIEW */}
           {activeView === "dashboard" && (
             <div className="space-y-6">
               
               {/* Premium Welcome Header Card */}
-              <div className="p-8 rounded-[24px] border border-[#E5EAF5] bg-gradient-to-br from-[#EEF2FF] via-white to-[#F7F8FC] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-sm">
-                <div className="space-y-3.5 relative z-10 max-w-xl text-center md:text-left">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#5B6CFF]/10 text-[#5B6CFF] text-[11px] font-bold uppercase tracking-wider">
-                    <Sparkles className="w-4 h-4 animate-pulse" />
+              <div className="p-8 rounded-[24px] border border-[#ECECF5] bg-gradient-to-br from-[#EEF2FF]/80 via-white to-[#FAF9FD] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.01)]">
+                <div className="space-y-3 relative z-10 max-w-xl text-center md:text-left">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EEF2FF] text-[#5B6CFF] text-[11px] font-bold uppercase tracking-wider">
+                    <Zap className="w-3.5 h-3.5 fill-current" />
                     <span>Focus State active</span>
                   </div>
                   
-                  <h2 className="font-outfit text-[32px] font-semibold tracking-tight text-[#1F2937]">
-                    Hello, <span className="text-[#5B6CFF]">{profileName || userEmail.split("@")[0]}</span>!
+                  <h2 className="font-outfit text-4xl font-extrabold tracking-tight text-[#1F2937]">
+                    Hello, <span className="text-[#5B6CFF]">{profileName || userEmail.split("@")[0]}</span>! 👋
                   </h2>
-                  <p className="text-[15px] text-[#5F6B7A] leading-relaxed font-medium">
-                    You have <span className="text-[#5B6CFF] font-semibold">{tasks.filter(t => t.status !== 'completed').length} pending</span> items and <span className="text-[#22C55E] font-semibold">{habits.filter(isHabitDoneToday).length} habits</span> locked in today. Use AI priorities to reduce anxiety.
+                  <p className="text-[15px] text-[#5F6B7A] font-medium leading-relaxed">
+                    You have <span className="text-[#5B6CFF] font-bold">{tasks.filter(t => t.status !== 'completed').length} pending</span> items and <span className="text-[#10B981] font-bold">{habits.filter(isHabitDoneToday).length} habits</span> locked in today.
+                  </p>
+                  <p className="text-[15px] text-[#5F6B7A] font-medium leading-relaxed">
+                    Use AI priorities to reduce anxiety.
                   </p>
                   
-                  <div className="flex flex-wrap gap-2.5 pt-2 justify-center md:justify-start">
+                  <div className="flex flex-wrap gap-2.5 pt-4 justify-center md:justify-start">
                     <button
                       disabled={aiPrioritizing}
                       onClick={handleAIPrioritisation}
-                      className="px-5 py-3 bg-[#5B6CFF] hover:bg-[#4758E8] text-white text-[15px] font-semibold rounded-[14px] flex items-center gap-2 cursor-pointer shadow-sm transition-all duration-250 hover:scale-[1.02] disabled:opacity-55"
+                      className="px-5 py-3 bg-[#5B6CFF] hover:bg-[#4758E8] text-white text-[14px] font-bold rounded-xl flex items-center gap-2 cursor-pointer transition-all duration-250 hover:scale-[1.01] disabled:opacity-55 shadow-sm"
                     >
-                      <Zap className="w-4 h-4" />
+                      <Zap className="w-4 h-4 fill-current" />
                       <span>{aiPrioritizing ? "Prioritizing..." : "Curate AI Priorities"}</span>
                     </button>
                     <button
                       disabled={aiPlanning}
                       onClick={handleAIGeneratePlan}
-                      className="px-5 py-3 border border-[#E5EAF5] bg-white hover:bg-[#F7F8FC] text-[#5F6B7A] text-[15px] font-semibold rounded-[14px] flex items-center gap-2 cursor-pointer transition-all duration-250 hover:scale-[1.02] shadow-sm disabled:opacity-55"
+                      className="px-5 py-3 border border-[#ECECF5] bg-white hover:bg-[#FAF9FD] text-[#5F6B7A] text-[14px] font-bold rounded-xl flex items-center gap-2 cursor-pointer transition-all duration-250 hover:scale-[1.01] disabled:opacity-55 shadow-sm"
                     >
-                      <Calendar className="w-4 h-4 text-emerald-500" />
+                      <Calendar className="w-4 h-4 text-[#5F6B7A]" />
                       <span>Focus Schedule</span>
                     </button>
                   </div>
                 </div>
 
                 {/* SVG Momentum Ring right side of header */}
-                <div className="shrink-0 relative w-36 h-36 flex items-center justify-center bg-white rounded-full p-4 border border-[#E5EAF5] shadow-xs">
+                <div className="shrink-0 relative w-36 h-36 flex items-center justify-center">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 128 128">
                     <circle
                       cx="64"
                       cy="64"
                       r="54"
-                      stroke="#E5EAF5"
+                      stroke="#EEF0F8"
                       strokeWidth="8"
                       fill="transparent"
                     />
@@ -1619,42 +1832,44 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     />
                   </svg>
                   <div className="absolute text-center">
-                    <span className="font-outfit text-3xl font-semibold text-[#5B6CFF] tabular-nums">
+                    <span className="font-outfit text-[32px] font-extrabold text-[#1F2937] leading-none block">
                       {taskCompletionPercent}%
                     </span>
-                    <p className="text-[11px] text-[#5F6B7A] font-bold uppercase tracking-wider">Momentum</p>
+                    <span className="text-[10px] text-[#5F6B7A] font-bold uppercase tracking-wider block mt-1">
+                      Momentum
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Most Urgent Reminder Banner */}
               {mostUrgentTask && (
-                <div className="p-6 rounded-[20px] border border-rose-100/60 bg-gradient-to-r from-rose-50/60 to-orange-50/40 text-[#1F2937] flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
-                  <div className="flex items-start gap-3.5 relative z-10">
-                    <div className="p-2.5 bg-rose-500/10 text-rose-500 rounded-[12px] mt-0.5">
-                      <AlertCircle className="w-5.5 h-5.5 animate-pulse" />
+                <div className="p-6 rounded-[24px] border border-red-100 bg-[#FFF5F5] text-[#1F2937] flex flex-col md:flex-row items-center justify-between gap-5 relative overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.01)]">
+                  <div className="flex items-start gap-4 relative z-10 w-full md:w-auto">
+                    <div className="shrink-0 w-12 h-12 rounded-2xl bg-[#FFEBEB] text-[#EF4444] flex items-center justify-center shadow-xs">
+                      <AlertCircle className="w-6 h-6 stroke-[2.5] animate-pulse" />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="space-y-1 w-full">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-rose-600 uppercase tracking-widest bg-rose-100/60 px-2.5 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-red-500 uppercase tracking-widest bg-red-100/50 px-2.5 py-0.5 rounded-md">
                           🔥 Critical Target
                         </span>
-                        <span className="text-[11px] text-[#5F6B7A] font-semibold">
+                        <span className="text-xs text-[#5F6B7A] font-semibold">
                           Due: {formatDeadline(mostUrgentTask.deadline).formatted}
                         </span>
                       </div>
-                      <h4 className="font-outfit text-[16px] font-semibold text-[#1F2937]">
+                      <h4 className="font-outfit text-[16px] font-extrabold text-[#1F2937] mt-1.5">
                         {mostUrgentTask.title}
                       </h4>
-                      <p className="text-[13px] text-[#5F6B7A] italic leading-relaxed">
-                        💡 {mostUrgentTask.aiTip || "Relax. Let's break this syllabus into three parts and focus on Part 1 for 15 minutes."}
+                      <p className="text-[13px] text-[#5F6B7A] italic font-medium leading-relaxed mt-1 flex items-center gap-1">
+                        💡 {mostUrgentTask.aiTip || "Let's break this task into micro-steps. Just spend 5 minutes on it to build immediate momentum!"}
                       </p>
                     </div>
                   </div>
 
                   <button
                     onClick={() => handleToggleTaskStatus(mostUrgentTask.id)}
-                    className="w-full md:w-auto px-5 py-3 bg-[#5B6CFF] hover:bg-[#4758E8] text-white text-[15px] font-semibold rounded-[14px] flex items-center justify-center gap-2 cursor-pointer transition-all duration-250 hover:scale-[1.02] shadow-sm"
+                    className="w-full md:w-auto px-6 py-3 bg-[#EF4444] hover:bg-[#DC2626] text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all duration-250 hover:scale-[1.01] shrink-0 shadow-sm"
                   >
                     <Check className="w-4 h-4 stroke-[3]" />
                     <span>Defuse Target</span>
@@ -1663,63 +1878,114 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
               )}
 
               {/* Bento-Grid metrics */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* Pending targets metric */}
-                <div className={`custom-card p-6 border ${cardBg} space-y-3`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Workload Target</span>
-                    <span className="p-2 bg-[#5B6CFF]/10 text-[#5B6CFF] rounded-[12px]"><Zap className="w-4 h-4" /></span>
-                  </div>
-                  <h3 className="font-outfit text-4xl font-semibold text-[#5B6CFF] tabular-nums">
-                    {tasks.filter(t => t.status !== 'completed').length}
-                  </h3>
-                  <p className="text-[13px] font-medium text-[#5F6B7A]">Pending registered tasks</p>
-                </div>
+              {(() => {
+                const totalTasksCount = tasks.length;
+                const completedTasksCount = tasks.filter(t => t.status === 'completed').length;
+                const taskProgress = totalTasksCount > 0 ? (completedTasksCount / totalTasksCount) * 100 : 0;
 
-                {/* Habits Streak Metric */}
-                <div className={`custom-card p-6 border ${cardBg} space-y-3`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Energy Habits</span>
-                    <span className="p-2 bg-emerald-50 text-emerald-600 rounded-[12px]"><Award className="w-4 h-4" /></span>
-                  </div>
-                  <h3 className="font-outfit text-4xl font-semibold text-[#22C55E] tabular-nums">
-                    {habits.filter(isHabitDoneToday).length} / {habits.length}
-                  </h3>
-                  <p className="text-[13px] font-medium text-[#5F6B7A]">Completed checks today</p>
-                </div>
+                const habitsCount = habits.length;
+                const completedHabitsCount = habits.filter(isHabitDoneToday).length;
+                const habitsProgress = habitsCount > 0 ? (completedHabitsCount / habitsCount) * 100 : 0;
 
-                {/* Overdue Items Alert */}
-                <div className={`custom-card p-6 border ${cardBg} space-y-3`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Overdue Danger</span>
-                    <span className="p-2 bg-rose-50 text-rose-600 rounded-[12px]"><AlertCircle className="w-4 h-4" /></span>
-                  </div>
-                  <h3 className="font-outfit text-4xl font-semibold text-[#EF4444] tabular-nums">
-                    {tasks.filter(t => t.status !== 'completed' && new Date(t.deadline).getTime() < new Date().getTime()).length}
-                  </h3>
-                  <p className="text-[13px] font-medium text-[#5F6B7A]">Critical rescue tasks</p>
-                </div>
+                const overdueCount = tasks.filter(t => t.status !== 'completed' && new Date(t.deadline).getTime() < new Date().getTime()).length;
+                const overdueProgress = overdueCount > 0 ? 100 : 0;
 
-              </div>
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    {/* Pending targets metric */}
+                    <div className="bg-white/75 backdrop-blur-md p-6 border border-[#ECECF5] rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.01)] flex flex-col justify-between hover:-translate-y-1 hover:border-[#5B6CFF] hover:shadow-[0_12px_30px_rgba(91,108,255,0.08)] transition-all duration-300 ease-in-out">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-10 h-10 bg-[#EEF2FF] text-[#5B6CFF] rounded-xl flex items-center justify-center shrink-0">
+                            <Zap className="w-5 h-5 fill-current" />
+                          </span>
+                          <span className="text-[11px] font-extrabold text-[#5F6B7A] uppercase tracking-wider">Workload Target</span>
+                        </div>
+                        <h3 className="font-outfit text-4xl font-extrabold text-[#5B6CFF] mt-3 mb-1 tabular-nums">
+                          {tasks.filter(t => t.status !== 'completed').length}
+                        </h3>
+                        <p className="text-[12px] font-semibold text-[#5F6B7A]">Pending registered tasks</p>
+                      </div>
+                      <div className="h-1 bg-[#ECECF5] rounded-full mt-4 w-full relative overflow-hidden">
+                        <div 
+                          className="absolute left-0 top-0 h-full bg-[#5B6CFF] rounded-full transition-all duration-500" 
+                          style={{ width: `${taskProgress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Habits Streak Metric */}
+                    <div className="bg-white/75 backdrop-blur-md p-6 border border-[#ECECF5] rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.01)] flex flex-col justify-between hover:-translate-y-1 hover:border-[#10B981] hover:shadow-[0_12px_30px_rgba(16,185,129,0.08)] transition-all duration-300 ease-in-out">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-10 h-10 bg-[#E8FBF2] text-[#10B981] rounded-xl flex items-center justify-center shrink-0">
+                            <Award className="w-5 h-5" />
+                          </span>
+                          <span className="text-[11px] font-extrabold text-[#5F6B7A] uppercase tracking-wider">Energy Habits</span>
+                        </div>
+                        <h3 className="font-outfit text-4xl font-extrabold text-[#10B981] mt-3 mb-1 tabular-nums">
+                          {habits.filter(isHabitDoneToday).length}/{habits.length}
+                        </h3>
+                        <p className="text-[12px] font-semibold text-[#5F6B7A]">Completed checks today</p>
+                      </div>
+                      <div className="h-1 bg-[#ECECF5] rounded-full mt-4 w-full relative overflow-hidden">
+                        <div 
+                          className="absolute left-0 top-0 h-full bg-[#10B981] rounded-full transition-all duration-500" 
+                          style={{ width: `${habitsProgress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Overdue Items Alert */}
+                    <div className="bg-white/75 backdrop-blur-md p-6 border border-[#ECECF5] rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.01)] flex flex-col justify-between hover:-translate-y-1 hover:border-[#EF4444] hover:shadow-[0_12px_30px_rgba(239,68,68,0.08)] transition-all duration-300 ease-in-out">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-10 h-10 bg-[#FFF0F0] text-[#EF4444] rounded-xl flex items-center justify-center shrink-0">
+                            <AlertCircle className="w-5 h-5" />
+                          </span>
+                          <span className="text-[11px] font-extrabold text-[#5F6B7A] uppercase tracking-wider">Overdue Danger</span>
+                        </div>
+                        <h3 className="font-outfit text-4xl font-extrabold text-[#EF4444] mt-3 mb-1 tabular-nums">
+                          {tasks.filter(t => t.status !== 'completed' && new Date(t.deadline).getTime() < new Date().getTime()).length}
+                        </h3>
+                        <p className="text-[12px] font-semibold text-[#5F6B7A]">Critical rescue tasks</p>
+                      </div>
+                      <div className="h-1 bg-[#ECECF5] rounded-full mt-4 w-full relative overflow-hidden">
+                        <div 
+                          className="absolute left-0 top-0 h-full bg-[#EF4444] rounded-full transition-all duration-500" 
+                          style={{ width: `${overdueProgress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()}
 
               {/* Next Up Quick Checklist */}
-              <div className={`custom-card p-6 border ${cardBg} space-y-4`}>
-                <h4 className="font-outfit font-semibold text-[18px] tracking-tight">⚡ Closest Rescue Targets</h4>
-                <div className="space-y-3.5">
+              <div className="bg-white/75 backdrop-blur-md p-6 border border-[#ECECF5] rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.01)] space-y-4">
+                <h4 className="font-outfit font-extrabold text-[15px] text-[#1F2937] flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                  <span>Closest Rescue Targets</span>
+                </h4>
+                <div className="space-y-1">
                   {tasks.filter(t => t.status !== 'completed').slice(0, 3).length === 0 ? (
-                    <p className="text-[15px] font-medium text-[#5F6B7A]">All tasks completed. Great job!</p>
+                    <p className="text-[14px] font-semibold text-[#5F6B7A] py-2">All tasks completed. Great job!</p>
                   ) : (
                     tasks.filter(t => t.status !== 'completed').slice(0, 3).map((t) => (
-                      <div key={t.id} className="flex items-center justify-between border-b border-[#E5EAF5] pb-3.5 last:border-0 last:pb-0">
-                        <div className="flex items-center gap-2.5">
-                          <button onClick={() => handleToggleTaskStatus(t.id)} className="text-[#5F6B7A]/40 hover:text-[#5B6CFF] cursor-pointer transition-colors">
-                            <Circle className="w-4.5 h-4.5" />
+                      <div key={t.id} className="flex items-center justify-between border-b border-[#ECECF5]/60 py-3.5 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => handleToggleTaskStatus(t.id)} 
+                            className="text-[#D1D5DB] hover:text-[#5B6CFF] cursor-pointer transition-colors"
+                          >
+                            <Circle className="w-5.5 h-5.5" />
                           </button>
-                          <span className="text-[15px] font-semibold text-[#1F2937]">{t.title}</span>
+                          <span className="text-[14px] font-semibold text-[#1F2937]">{t.title}</span>
                         </div>
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100/60 uppercase">
-                          {formatDeadline(t.deadline).formatted}
+                        <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#FFFBEB] text-[#D97706] uppercase tracking-wider shrink-0">
+                          {formatDeadline(t.deadline).formatted.toUpperCase()}
                         </span>
                       </div>
                     ))
@@ -1812,7 +2078,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
               <div className="space-y-8 animate-fade-in text-[#1F2937]">
                 
                 {/* Header Banner */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E5EAF5]/80 pb-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#ECECF5] pb-5">
                   <div>
                     <h2 className="font-outfit font-extrabold text-2xl tracking-tight text-[#1F2937] flex items-center gap-2">
                       <TrendingUp className="w-6 h-6 text-[#5B6CFF]" />
@@ -1829,8 +2095,8 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                   <div className="lg:col-span-5 space-y-6">
                     
                     {/* Ring Card */}
-                    <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-6 shadow-sm flex flex-col items-center text-center relative overflow-hidden group hover:border-[#7C8CFF]/50 transition-all duration-300">
-                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#5B6CFF] to-indigo-500" />
+                    <div className="bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-3xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.01)] flex flex-col items-center text-center relative overflow-hidden group hover:border-[#5B6CFF]/30 transition-all duration-300">
+                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#5B6CFF] to-[#8B5CF6]" />
                       
                       <h3 className="font-outfit font-extrabold text-[15px] text-[#1F2937] mb-6 flex items-center gap-1.5">
                         <Activity className="w-4.5 h-4.5 text-[#5B6CFF]" />
@@ -1894,7 +2160,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     </div>
 
                     {/* Workload Profile Breakdown */}
-                    <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-6 shadow-sm space-y-4 hover:border-[#7C8CFF]/30 transition-all duration-300">
+                    <div className="bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-3xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.01)] space-y-4 hover:border-[#5B6CFF]/30 transition-all duration-300">
                       <h4 className="font-outfit font-extrabold text-[14px] text-[#1F2937] flex items-center gap-1.5">
                         <Sliders className="w-4 h-4 text-[#5B6CFF]" />
                         <span>Workload Stress Profile</span>
@@ -1971,7 +2237,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       
                       {/* Urgent Target Focus */}
-                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-3 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                      <div className="bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-3xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.01)] space-y-3 hover:border-[#5B6CFF]/30 transition-all duration-300 flex flex-col justify-between">
                         <div className="space-y-1">
                           <p className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1">
                             <AlertCircle className="w-3.5 h-3.5 text-red-500" />
@@ -2004,7 +2270,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                       </div>
 
                       {/* Habits Consistency */}
-                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-3 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                      <div className="bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-3xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.01)] space-y-3 hover:border-[#5B6CFF]/30 transition-all duration-300 flex flex-col justify-between">
                         <div>
                           <p className="text-[10px] font-black text-[#5B6CFF] uppercase tracking-widest flex items-center gap-1">
                             <Trophy className="w-3.5 h-3.5 text-amber-500" />
@@ -2032,7 +2298,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                       </div>
 
                       {/* Estimated Work Remaining */}
-                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-2 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                      <div className="bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-3xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.01)] space-y-2 hover:border-[#5B6CFF]/30 transition-all duration-300 flex flex-col justify-between">
                         <div>
                           <p className="text-[10px] font-black text-[#5B6CFF] uppercase tracking-widest flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5 text-[#5B6CFF]" />
@@ -2051,7 +2317,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                       </div>
 
                       {/* Overall Efficiency Ratio */}
-                      <div className="bg-white border border-[#E5EAF5]/90 rounded-3xl p-5 shadow-sm space-y-2 hover:border-[#7C8CFF]/30 transition-all duration-300 flex flex-col justify-between">
+                      <div className="bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-3xl p-5 shadow-[0_8px_30px_rgba(0,0,0,0.01)] space-y-2 hover:border-[#5B6CFF]/30 transition-all duration-300 flex flex-col justify-between">
                         <div>
                           <p className="text-[10px] font-black text-[#5B6CFF] uppercase tracking-widest flex items-center gap-1">
                             <Target className="w-3.5 h-3.5 text-[#5B6CFF]" />
@@ -2070,7 +2336,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     </div>
 
                     {/* Stress Mitigation Advice Panel */}
-                    <div className="bg-gradient-to-br from-indigo-50/20 to-sky-50/10 border border-[#E5EAF5]/90 rounded-3xl p-6.5 shadow-sm space-y-4 relative overflow-hidden">
+                    <div className="bg-gradient-to-br from-[#EEF2FF] via-white/80 to-[#FAF9FD] border border-[#ECECF5] rounded-3xl p-6.5 shadow-[0_8px_30px_rgba(0,0,0,0.01)] space-y-4 relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-3 opacity-[0.03] select-none">
                         <Sparkles className="w-24 h-24 text-indigo-500" />
                       </div>
@@ -2236,7 +2502,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                 </div>
  
                 {/* Momentum Score Card (lg:col-span-4) */}
-                <div className="lg:col-span-4 bg-white p-6 border border-[#E5EAF5] rounded-[24px] shadow-xs flex flex-col justify-between min-h-[200px] hover:scale-[1.01] hover:shadow-md transition-all duration-250 ease-in-out">
+                <div className="lg:col-span-4 bg-white/75 backdrop-blur-md p-6 border border-[#ECECF5] rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.01)] flex flex-col justify-between min-h-[200px] hover:scale-[1.01] hover:border-[#5B6CFF]/30 hover:shadow-[0_8px_30px_rgba(91,108,255,0.04)] transition-all duration-250 ease-in-out">
                   <div className="space-y-1">
                     <p className="text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">Momentum Score</p>
                   </div>
@@ -2302,8 +2568,8 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                 <div className="lg:col-span-5 space-y-6">
                   
                   {/* Customize Identity Card */}
-                  <div className={`bg-white p-6 border border-[#E5EAF5] rounded-[24px] space-y-5 shadow-xs relative`} id="profile-editor-card">
-                    <div className="flex items-center justify-between pb-3 border-b border-[#E5EAF5]">
+                  <div className={`bg-white/75 backdrop-blur-md p-6 border border-[#ECECF5] rounded-[24px] space-y-5 shadow-[0_8px_30px_rgba(0,0,0,0.01)] relative`} id="profile-editor-card">
+                    <div className="flex items-center justify-between pb-3 border-b border-[#ECECF5]">
                       <div>
                         <h3 className="font-outfit text-lg font-extrabold text-[#1F2937]">
                           Customize Identity
@@ -2321,7 +2587,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                             setEditBio(bio);
                             setIsEditingDetails(true);
                           }}
-                          className="px-3 py-1.5 border border-[#E5EAF5] hover:border-[#3B82F6] text-[12px] text-[#3B82F6] bg-white hover:bg-[#EFF6FF] font-bold flex items-center gap-1.5 rounded-xl transition-all cursor-pointer"
+                          className="px-3 py-1.5 border border-[#ECECF5] hover:border-[#5B6CFF] text-[12px] text-[#5B6CFF] bg-white hover:bg-[#EEF2FF] font-bold flex items-center gap-1.5 rounded-xl transition-all cursor-pointer"
                           id="profile-edit-trigger-btn"
                         >
                           <Edit2 className="w-3.5 h-3.5" /> Edit Profile
@@ -2564,7 +2830,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                   {/* Achievement Cards (2x2 Grid) */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* Card 1: Tasks Completed */}
-                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                    <div className="group bg-white/75 backdrop-blur-md p-4.5 rounded-[20px] border border-[#ECECF5] shadow-[0_8px_30px_rgba(0,0,0,0.01)] hover:-translate-y-1 hover:border-[#5B6CFF]/30 hover:shadow-[0_8px_30px_rgba(91,108,255,0.04)] transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
                       <div className="flex items-center justify-between">
                         <div className="w-10 h-10 bg-[#E8FBF2] text-[#10B981] rounded-xl flex items-center justify-center shrink-0">
                           <CheckCircle2 className="w-5 h-5" />
@@ -2584,7 +2850,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     </div>
 
                     {/* Card 2: Active Habits */}
-                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                    <div className="group bg-white/75 backdrop-blur-md p-4.5 rounded-[20px] border border-[#ECECF5] shadow-[0_8px_30px_rgba(0,0,0,0.01)] hover:-translate-y-1 hover:border-[#5B6CFF]/30 hover:shadow-[0_8px_30px_rgba(91,108,255,0.04)] transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
                       <div className="flex items-center justify-between">
                         <div className="w-10 h-10 bg-[#EEF2FF] text-[#3B82F6] rounded-xl flex items-center justify-center shrink-0">
                           <Calendar className="w-5 h-5" />
@@ -2604,7 +2870,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     </div>
 
                     {/* Card 3: Peak Momentum */}
-                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                    <div className="group bg-white/75 backdrop-blur-md p-4.5 rounded-[20px] border border-[#ECECF5] shadow-[0_8px_30px_rgba(0,0,0,0.01)] hover:-translate-y-1 hover:border-[#5B6CFF]/30 hover:shadow-[0_8px_30px_rgba(91,108,255,0.04)] transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
                       <div className="flex items-center justify-between">
                         <div className="w-10 h-10 bg-[#F5F3FF] text-[#8B5CF6] rounded-xl flex items-center justify-center shrink-0">
                           <Zap className="w-5 h-5" />
@@ -2624,7 +2890,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     </div>
 
                     {/* Card 4: Badges Earned */}
-                    <div className="group bg-white p-4.5 rounded-[20px] border border-[#E5EAF5] shadow-xs hover:-translate-y-1 hover:shadow-md transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
+                    <div className="group bg-white/75 backdrop-blur-md p-4.5 rounded-[20px] border border-[#ECECF5] shadow-[0_8px_30px_rgba(0,0,0,0.01)] hover:-translate-y-1 hover:border-[#5B6CFF]/30 hover:shadow-[0_8px_30px_rgba(91,108,255,0.04)] transition-all duration-250 ease-in-out flex flex-col justify-between h-[120px]">
                       <div className="flex items-center justify-between">
                         <div className="w-10 h-10 bg-[#FFFBEB] text-[#F59E0B] rounded-xl flex items-center justify-center shrink-0">
                           <Trophy className="w-5 h-5" />
@@ -2654,8 +2920,8 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                   </div>
 
                   {/* Medals & Achievements Collection Card */}
-                  <div className="bg-white p-6 border border-[#E5EAF5] rounded-[24px] space-y-5" id="profile-achievements-card">
-                    <div className="flex items-center justify-between border-b border-[#E5EAF5] pb-4">
+                  <div className="bg-white/75 backdrop-blur-md p-6 border border-[#ECECF5] rounded-[24px] space-y-5 shadow-[0_8px_30px_rgba(0,0,0,0.01)]" id="profile-achievements-card">
+                    <div className="flex items-center justify-between border-b border-[#ECECF5] pb-4">
                       <div>
                         <h3 className="font-outfit text-lg font-bold text-[#1F2937]">
                           Crisis Rescue Medals
@@ -2915,8 +3181,8 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
             <div className="max-w-2xl mx-auto space-y-6">
               
               {/* App Settings Form Card */}
-              <div className={`custom-card p-6 bg-white border border-[#E5EAF5] rounded-[20px] space-y-6`} id="profile-settings-card">
-                <div className="flex items-center pb-4 border-b border-[#E5EAF5]">
+              <div className={`custom-card p-6 bg-white/75 backdrop-blur-md border border-[#ECECF5] rounded-[24px] space-y-6 shadow-[0_8px_30px_rgba(0,0,0,0.01)]`} id="profile-settings-card">
+                <div className="flex items-center pb-4 border-b border-[#ECECF5]">
                   <h3 className="font-outfit text-lg font-semibold text-[#1F2937] flex items-center gap-2">
                     <Settings className="w-5 h-5 text-[#5B6CFF]" /> App Settings & Rescue Preferences
                   </h3>
@@ -2934,7 +3200,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                 )}
 
                 <form onSubmit={handleUpdateSettings} className="space-y-5">
-                  {/* Work Session Duration */}
+                   {/* Work Session Duration */}
                   <div className="space-y-2">
                     <label className="block text-[11px] font-bold text-[#5F6B7A] uppercase tracking-wider">
                       Work Session Length (Pomodoro)
@@ -2948,7 +3214,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                           className={`py-2 text-[13px] font-bold rounded-[10px] transition-all cursor-pointer border ${
                             workDuration === dur
                               ? "bg-[#5B6CFF] border-[#5B6CFF] text-white shadow-xs"
-                              : "bg-white border-[#E5EAF5] text-[#5F6B7A] hover:bg-[#EEF2FF] hover:text-[#5B6CFF]"
+                              : "bg-white border-[#ECECF5] text-[#5F6B7A] hover:bg-[#EEF2FF] hover:text-[#5B6CFF]"
                           }`}
                         >
                           {dur} Min
@@ -2974,7 +3240,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                           className={`py-2 text-[13px] font-bold rounded-[10px] transition-all cursor-pointer border ${
                             breakDuration === dur
                               ? "bg-[#5B6CFF] border-[#5B6CFF] text-white shadow-xs"
-                              : "bg-white border-[#E5EAF5] text-[#5F6B7A] hover:bg-[#EEF2FF] hover:text-[#5B6CFF]"
+                              : "bg-white border-[#ECECF5] text-[#5F6B7A] hover:bg-[#EEF2FF] hover:text-[#5B6CFF]"
                           }`}
                         >
                           {dur} Min
@@ -2991,7 +3257,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     <select
                       value={stressTolerance}
                       onChange={(e) => setStressTolerance(e.target.value)}
-                      className="w-full px-4 py-2.5 bg-[#F7F8FC] border border-[#E5EAF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[12px] transition-colors font-medium text-[#1F2937]"
+                      className="w-full px-4 py-2.5 bg-[#FAF9FD] border border-[#ECECF5] focus:border-[#5B6CFF] outline-none text-[15px] rounded-[12px] transition-colors font-medium text-[#1F2937]"
                       id="settings-stress-select"
                     >
                       <option value="Aggressive">Aggressive (Tighter intervals, high density)</option>
@@ -3049,7 +3315,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                   </div>
 
                   {/* Save button */}
-                  <div className="pt-4 border-t border-[#E5EAF5] flex justify-end">
+                  <div className="pt-4 border-t border-[#ECECF5] flex justify-end">
                     <button
                       type="submit"
                       disabled={settingsLoading}
@@ -3073,7 +3339,7 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                 <h3 className="font-outfit font-semibold text-[22px] text-[#1F2937]">Workspace Parameters</h3>
                 
                 <div className="space-y-5 text-gray-500">
-                  <div className="p-5 rounded-[16px] bg-[#F7F8FC] border border-[#E5EAF5] space-y-2">
+                  <div className="p-5 rounded-[16px] bg-[#FAF9FD] border border-[#ECECF5] space-y-2">
                     <h5 className="font-semibold text-[16px] text-[#1F2937] flex items-center gap-1.5">🎙️ Speech Parsing Guide</h5>
                     <p className="text-[13px] text-[#5F6B7A] font-medium leading-relaxed">Click 'Speak Task' in Productivity &rarr; Tasks Board and dictate clearly:</p>
                     <ul className="list-disc pl-5 space-y-1 text-[13px] text-[#5F6B7A] font-medium">
@@ -3082,12 +3348,12 @@ export default function Dashboard({ userEmail, userId, onLogout, onNavigate }: D
                     </ul>
                   </div>
 
-                  <div className="p-5 rounded-[16px] bg-[#F7F8FC] border border-[#E5EAF5] space-y-2">
+                  <div className="p-5 rounded-[16px] bg-[#FAF9FD] border border-[#ECECF5] space-y-2">
                     <h5 className="font-semibold text-[16px] text-[#1F2937] flex items-center gap-1.5">🔒 Row-Level Data Segregation</h5>
                     <p className="text-[13px] text-[#5F6B7A] font-medium leading-relaxed">All tasks, schedules, and consistency checks are limited strictly to user ID <code className="px-2 py-0.5 bg-[#EEF2FF] rounded text-[#5B6CFF] font-mono text-[13px]">{userId}</code> via authenticated filters.</p>
                   </div>
 
-                  <div className="p-5 rounded-[16px] bg-[#F7F8FC] border border-[#E5EAF5] space-y-2">
+                  <div className="p-5 rounded-[16px] bg-[#FAF9FD] border border-[#ECECF5] space-y-2">
                     <h5 className="font-semibold text-[16px] text-[#1F2937] flex items-center gap-1.5">⚙️ Core Build Status</h5>
                     <p className="text-[13px] text-[#22C55E] flex items-center gap-2 font-bold">
                       <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] animate-ping"></span>

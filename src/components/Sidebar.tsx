@@ -41,7 +41,7 @@ export default function Sidebar({
     { id: "settings", label: "Settings", icon: Settings }
   ];
 
-  const sidebarBg = "bg-[#EEF2FF] border-[#E5EAF5]";
+  const sidebarBg = "bg-white/80 backdrop-blur-md border-[#ECECF5]";
 
   return (
     <aside 
@@ -49,7 +49,7 @@ export default function Sidebar({
     >
       {/* Top Header / Branding */}
       <div>
-        <div className="h-16 flex items-center justify-between px-5 border-b border-[#E5EAF5] overflow-hidden relative">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-[#ECECF5] overflow-hidden relative">
           <div className="flex items-center gap-3 min-w-0">
             {/* Logo Box */}
             <button 
@@ -72,7 +72,7 @@ export default function Sidebar({
           {/* Collapse Trigger */}
           <button 
             onClick={() => setIsSidebarCollapsed(true)}
-            className={`p-1.5 rounded-lg hover:bg-[#DCE5FF] text-[#5F6B7A] hover:text-[#1F2937] transition-all duration-500 cursor-pointer shrink-0 ${isSidebarCollapsed ? "opacity-0 scale-50 pointer-events-none w-0 p-0" : "opacity-100 scale-100"}`}
+            className={`p-1.5 rounded-lg hover:bg-[#EEF0FF] text-[#5F6B7A] hover:text-[#1F2937] transition-all duration-500 cursor-pointer shrink-0 ${isSidebarCollapsed ? "opacity-0 scale-50 pointer-events-none w-0 p-0" : "opacity-100 scale-100"}`}
             title="Collapse Sidebar"
           >
             <PanelLeftClose className="w-4.5 h-4.5" />
@@ -94,12 +94,12 @@ export default function Sidebar({
                     : "w-full gap-3.5 px-3.5 py-3 rounded-[14px] text-[15px] font-semibold tracking-wide hover:translate-x-0.5"
                 } ${
                   isActive 
-                    ? "bg-[#5B6CFF] text-white shadow-md shadow-[#5B6CFF]/20" 
-                    : "hover:bg-[#DCE5FF] text-[#5F6B7A] hover:text-[#1F2937]"
+                    ? "bg-[#EEF2FF] text-[#5B6CFF] font-bold" 
+                    : "hover:bg-[#EEF2FF]/60 text-[#5F6B7A] hover:text-[#1F2937]"
                 }`}
                 title={isSidebarCollapsed ? item.label : undefined}
               >
-                <IconComponent className={`w-5 h-5 shrink-0 ${isActive ? "text-white" : "text-[#5F6B7A] group-hover:text-[#1F2937] transition-colors duration-200"}`} />
+                <IconComponent className={`w-5 h-5 shrink-0 ${isActive ? "text-[#5B6CFF]" : "text-[#5F6B7A] group-hover:text-[#1F2937] transition-colors duration-200"}`} />
                 {!isSidebarCollapsed && (
                   <span className="truncate">{item.label}</span>
                 )}
@@ -126,14 +126,14 @@ export default function Sidebar({
       </div>
 
       {/* Bottom Footer Action */}
-      <div className="p-3 border-t border-[#E5EAF5] space-y-1.5">
+      <div className="p-3 border-t border-[#ECECF5] space-y-1.5">
         <button
           onClick={onTriggerHelp}
           className={`flex items-center transition-colors duration-200 cursor-pointer group ${
             isSidebarCollapsed 
               ? "w-12 h-12 rounded-[14px] mx-auto justify-center" 
               : "w-full gap-3.5 px-3.5 py-2.5 rounded-[14px] text-[15px] font-semibold hover:translate-x-0.5"
-          } text-[#5F6B7A] hover:text-[#1F2937] hover:bg-[#DCE5FF]`}
+          } text-[#5F6B7A] hover:text-[#1F2937] hover:bg-[#EEF0FF]`}
           title={isSidebarCollapsed ? "Onboarding Guide" : undefined}
         >
           <HelpCircle className="w-5 h-5 shrink-0 text-[#5F6B7A] group-hover:text-[#1F2937] transition-colors duration-200" />
